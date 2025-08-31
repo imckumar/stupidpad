@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chandan Notepad – Inline Rename Working</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      font-family: sans-serif;
+      background: #f4f4f4;
+      flex-direction: column;
+    }
+
+    #main {
+      display: flex;
+      flex: 1;
+    }
+
+    #editor {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    #editorArea {
+      display: flex;
+      flex: 1;
+    }
+
+    #lineNumbers {
+      width: 40px;
+      background: #eee;
+      color: #555;
+      text-align: right;
+      padding-top: 10px;
+      padding-right: 5px;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.4;
+      white-space: pre;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    textarea {
+      flex: 1;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      border: none;
+      outline: none;
+      resize: none;
+      background: #fff;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-x: auto;
+      overflow-y: scroll;
+      line-height: 1.4;
+    }
+
+    #tools {
+      width: 250px;
+      background: #333;
+      color: #fff;
+      padding: 15px;
+      box-sizing: border-box;
+    }
+
+    #tools h3 {
+      margin-top: 0;
+      font-size: 18px;
+      border-bottom: 1px solid #555;
+      padding-bottom: 5px;
+    }
+
+    #tools label {
+      display: block;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    #tools input[type="text"], #tools select {
+      width: 100%;
+      padding: 5px;
+      margin-top: 3px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    #tools button {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border: none;
+      background: #555;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    #tools button:hover {
+      background: #777;
+    }
+
+    #tabBar {
+      display: flex;
+      background: #ddd;
+      border-top: 1px solid #aaa;
+      padding: 5px;
+      overflow-x: auto;
+    }
+
+    .tab {
+      padding: 5px 10px;
+      background: #ccc;
+      margin-right: 5px;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      user-select: none;
+    }
+
+    .tab.active {
+      background: #fff;
+      font-weight: bold;
+      border: 1px solid #aaa;
+    }
+
+    .tab span {
+      margin-left: 8px;
+      color: red;
+      cursor: pointer;
+    }
+
+    .tab input {
+      font-size: 14px;
+      padding: 2px;
+      margin-left: 0;
+    }
+
+    #addTab {
+      background: #bbb;
+      font-weight: bold;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div id="main">
+    <div id="editor">
+      <div id="editorArea">
+        <div id="lineNumbers">1</div>
+        <textarea id="notepad" spellcheck="false" placeholder="Type your code here..."></textarea>
+      </div>
+      <div id="tabBar"></div>
+    </div>
+
+    <div id="tools">
+      <h3>Tools</h3>
+      <label>Search:</label>
+      <input type="text" id="searchBox">
+      <label>Replace with:</label>
+      <input type="text" id="replaceBox">
+      <button id="replaceBtn">Replace All</button>
+
+      <label style="margin-top:15px;">
+        <input type="checkbox" id="wordWrap" checked> Word Wrap
+      </label>
+
+      <label style="margin-top:15px;">Comment Style:</label>
+      <select id="commentStyle">
+        <option value="#"># (Python, Bash)</option>
+        <option value=";">; (Nginx, INI)</option>
+        <option value="'''">''' Block (Python)</option>
+      </select>
+    </div>
+  </div>
+
+  <script>
+    const textarea = document.getElementById('notepad');
+    const lineNumbers = document.getElementById('lineNumbers');
+    const commentStyleSelector = document.getElementById('commentStyle');
+    const tabBar = document.getElementById('tabBar');
+
+    let tabs = [];
+    let activeTabId = null;
+
+    function createTab(name = 'Untitled') {
+      const id = Date.now().toString();
+      tabs.push({ id, name, content: '' });
+      renderTabs();
+      switchTab(id);
+    }
+
+    function switchTab(id) {
+      saveCurrentTabContent();
+      activeTabId = id;
+      const tab = tabs.find(t => t.id === id);
+      textarea.value = tab ? tab.content : '';
+      updateLineNumbers();
+    }
+
+    function saveCurrentTabContent() {
+      if (!activeTabId) return;
+      const tab = tabs.find(t => t.id === activeTabId);
+      if (tab) tab.content = textarea.value;
+    }
+
+    function closeTab(id) {
+      const index = tabs.findIndex(t => t.id === id);
+      if (index !== -1) {
+        tabs.splice(index, 1);
+        if (activeTabId === id) {
+          const fallback = tabs[index] || tabs[index - 1];
+          fallback ? switchTab(fallback.id) : (activeTabId = null, textarea.value = '', updateLineNumbers());
+        }
+        renderTabs();
+      }
+    }
+
+    function renderTabs() {
+      tabBar.innerHTML = '';
+      tabs.forEach(tab => {
+        const tabEl = document.createElement('div');
+        tabEl.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = tab.name;
+
+        // Rename logic
+        nameSpan.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = tab.name;
+          input.addEventListener('blur', () => {
+            tab.name = input.value.trim() || tab.name;
+            renderTabs();
+          });
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              tab.name = input.value.trim() || tab.name;
+              renderTabs();
+            }
+          });
+          tabEl.replaceChild(input, nameSpan);
+          input.focus();
+        });
+
+        tabEl.appendChild(nameSpan);
+
+        const closeBtn = document.createElement('span');
+        closeBtn.textContent = '×';
+        closeBtn.title = 'Close tab';
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeTab(tab.id);
+        });
+        tabEl.appendChild(closeBtn);
+
+        tabEl.addEventListener('click', () => switchTab(tab.id));
+        tabBar.appendChild(tabEl);
+      });
+
+      const addBtn = document.createElement('div');
+      addBtn.id = 'addTab';
+      addBtn.textContent = '+';
+      addBtn.addEventListener('click', () => createTab(`Tab ${tabs.length + 1}`));
+      tabBar.appendChild(addBtn);
+    }
+
+    function updateLineNumbers() {
+      const count = textarea.value.split('\n').length;
+      lineNumbers.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
+    }
+
+    textarea.addEventListener('keydown', function (e) {
+      const start = this.selectionStart;
+      const end = this.selectionEnd;
+      const value = this.value;
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const indent = '   ';
+        this.value = value.slice(0, start) + indent + value.slice(end);
+        this.selectionStart = this.selectionEnd = start + indent.length;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const before = value.slice(0, start);
+        const after = value.slice(end);
+        const lines = before.split('\n');
+        const lastLine = lines[lines.length - 1];
+        const indent = lastLine.match(/^\s*/)?.[0] || '';
+        const addIndent = lastLine.trim().endsWith(':') ? indent + '   ' : indent;
+        this.value = before + '\n' + addIndent + after;
+        this.selectionStart = this.selectionEnd = start + 1 + addIndent.length;
+        updateLineNumbers();
+      }
+
+      if (e.key === 'Backspace') {
+        if (start === end) {
+          const before = value.slice(0, start);
+          const after = value.slice(end);
+          const last = before.slice(-3);
+          if (last === '   ') {
+            e.preventDefault();
+            this.value = before.slice(0, -3) + after;
+            this.selectionStart = this.selectionEnd = start - 3;
+          }
+        }
+      }
+    });
+
+    textarea.addEventListener('input', updateLineNumbers);
+    textarea.addEventListener('scroll', () => {
+      lineNumbers.scrollTop = textarea.scrollTop;
+    });
+
+    document.getElementById('wordWrap').addEventListener('change', (e) => {
+      textarea.style.whiteSpace = e.target.checked ? 'pre-wrap' : 'pre';
+      textarea.style.wordWrap = e.target.checked ? 'break-word' : 'normal';
+    });
+
+    document.getElementById('replaceBtn').addEventListener('click', () => {
+      const search = document.getElementById('searchBox').value;
+      const replace = document.getElementById('replaceBox').value;
+      if (!search) return;
+      textarea.value = textarea.value.replace(new RegExp(search, 'g'), replace);
+      updateLineNumbers();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const isShortcut = (isMac && e.metaKey && e.key === '/') || (!isMac && e.ctrlKey && e.key === '/');
+      if (!isShortcut) return;
+
+      e.preventDefault();
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+      const selected = value.slice(start, end);
+      const before = value.slice(0, start);
+      const after = value.slice(end);
+      const style = commentStyleSelector.value;
+
+      if (style === "'''") {
+        const trimmed = selected.trim();
+        if (trimmed.startsWith("'''") && trimmed.endsWith("'''")) {
+          textarea.value = before + trimmed.slice(3, -3) + after;
+        } else {
+          textarea.value = before + "'''\n" + selected + "\n'''" + after;
+        }
+      } else {
+        const lines = selected.split('\n');
+        const allCommented = lines.every(line => line.trim().startsWith(style));
+        const newLines = lines.map(line => {
+          if (allCommented) {
+            return line.replace(new RegExp(`^(\\s*)${style}\\s?`), '$1');
+          } else {
+            return line.replace(/^(\s*)/, `$1${style} `);
+          }
+        });
+        textarea.value = before + newLines.join('\n') + after;
+      }
+
+      updateLineNumbers();
+    });
+
+    // Start with one tab
+    createTab('Tab 1');
+  </script>
+</body>
+</html>
+
