@@ -2,181 +2,602 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Very Stupid Notepad</title>
+  <title>Code Practice Notepad</title>
   <style>
+    :root {
+      --bg-primary: #1e1e1e;
+      --bg-secondary: #252526;
+      --bg-tertiary: #2d2d30;
+      --text-primary: #cccccc;
+      --text-secondary: #969696;
+      --border: #3e3e42;
+      --accent: #007acc;
+      --accent-hover: #1177bb;
+      --error: #f44336;
+      --success: #4caf50;
+      --warning: #ff9800;
+    }
+
     body {
       margin: 0;
       display: flex;
       height: 100vh;
-      font-family: sans-serif;
-      background: #f4f4f4;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       flex-direction: column;
+    }
+
+    body.light-theme {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8f8f8;
+      --bg-tertiary: #eeeeee;
+      --text-primary: #333333;
+      --text-secondary: #666666;
+      --border: #d0d0d0;
+    }
+
+    #toolbar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+
+    #toolbar button, #toolbar select, #toolbar input[type="number"] {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+    }
+
+    #toolbar button:hover {
+      background: var(--accent);
+    }
+
+    #toolbar .separator {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      margin: 0 4px;
     }
 
     #main {
       display: flex;
       flex: 1;
+      overflow: hidden;
     }
 
     #editor {
       flex: 1;
       display: flex;
       flex-direction: column;
-      background: #fff;
+      background: var(--bg-primary);
+      position: relative;
     }
 
     #editorArea {
       display: flex;
       flex: 1;
+      position: relative;
+      overflow: hidden;
     }
 
     #lineNumbers {
-      width: 40px;
-      background: #eee;
-      color: #555;
+      width: 50px;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
       text-align: right;
-      padding-top: 10px;
-      padding-right: 5px;
-      font-family: monospace;
+      padding: 10px 8px 10px 4px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 14px;
       line-height: 1.4;
       white-space: pre;
       overflow: hidden;
       user-select: none;
+      border-right: 1px solid var(--border);
+      box-sizing: border-box;
+    }
+
+    #lineNumbers.clickable {
+      cursor: pointer;
+    }
+
+    #lineNumbers .line-number {
+      display: block;
+      position: relative;
+    }
+
+    #lineNumbers .line-number.bookmarked::before {
+      content: '●';
+      position: absolute;
+      left: -12px;
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    #lineNumbers .line-number.current-line {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-weight: bold;
     }
 
     textarea {
       flex: 1;
-      font-family: monospace;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 14px;
       padding: 10px;
       border: none;
       outline: none;
       resize: none;
-      background: #fff;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       white-space: pre-wrap;
       word-wrap: break-word;
       overflow-x: auto;
       overflow-y: scroll;
       line-height: 1.4;
+      tab-size: 4;
+    }
+
+    textarea::selection {
+      background: var(--accent);
+      color: white;
+    }
+
+    .current-line-highlight {
+      position: absolute;
+      left: 50px;
+      right: 0;
+      background: rgba(255, 255, 255, 0.05);
+      pointer-events: none;
+      z-index: 1;
+      height: 19.6px;
+    }
+
+    #minimap {
+      width: 120px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      overflow: hidden;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 2px;
+      line-height: 2px;
+      padding: 4px;
+      color: var(--text-secondary);
+      white-space: pre;
+      word-wrap: break-word;
+      display: none;
+    }
+
+    #minimap.show {
+      display: block;
     }
 
     #tools {
-      width: 250px;
-      background: #333;
-      color: #fff;
+      width: 280px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
       padding: 15px;
       box-sizing: border-box;
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
     }
 
     #tools h3 {
-      margin-top: 0;
-      font-size: 18px;
-      border-bottom: 1px solid #555;
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
       padding-bottom: 5px;
     }
 
     #tools label {
       display: block;
       margin-top: 10px;
-      font-size: 14px;
+      font-size: 12px;
     }
 
-    #tools input[type="text"], #tools select {
+    #tools input[type="text"], #tools input[type="number"], #tools select {
       width: 100%;
-      padding: 5px;
+      padding: 6px;
       margin-top: 3px;
       box-sizing: border-box;
-      font-size: 14px;
+      font-size: 12px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 3px;
     }
 
     #tools button {
       margin-top: 8px;
       padding: 6px 10px;
       border: none;
-      background: #555;
-      color: #fff;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
       cursor: pointer;
+      border-radius: 3px;
+      font-size: 12px;
+      border: 1px solid var(--border);
     }
 
     #tools button:hover {
-      background: #777;
+      background: var(--accent);
     }
 
     #tabBar {
       display: flex;
-      background: #ddd;
-      border-top: 1px solid #aaa;
-      padding: 5px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      padding: 4px 8px 0;
       overflow-x: auto;
+      min-height: 36px;
     }
 
     .tab {
-      padding: 5px 10px;
-      background: #ccc;
-      margin-right: 5px;
-      border-radius: 3px;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      margin-right: 4px;
+      border-radius: 6px 6px 0 0;
       cursor: pointer;
       display: flex;
       align-items: center;
       user-select: none;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      position: relative;
+      transition: all 0.2s ease;
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-width: 80px;
+      max-width: 200px;
+    }
+
+    .tab:hover {
+      background: var(--bg-primary);
+      color: var(--text-primary);
     }
 
     .tab.active {
-      background: #fff;
-      font-weight: bold;
-      border: 1px solid #aaa;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-weight: 500;
+      border-color: var(--accent);
     }
 
-    .tab span {
+    .tab .tab-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 8px;
+    }
+
+    .tab .close-btn {
       margin-left: 8px;
-      color: red;
+      color: var(--text-secondary);
       cursor: pointer;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 1;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
     }
 
-    .tab input {
-      font-size: 14px;
-      padding: 2px;
-      margin-left: 0;
+    .tab .close-btn:hover {
+      background: var(--error);
+      color: white;
     }
 
     #addTab {
-      background: #bbb;
+      background: var(--accent);
+      color: white;
       font-weight: bold;
-      padding: 5px 10px;
+      padding: 8px 12px;
       cursor: pointer;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      min-width: 30px;
+      border: 1px solid var(--accent);
+      border-bottom: none;
+      transition: all 0.2s ease;
+    }
+
+    #addTab:hover {
+      background: var(--accent-hover);
+    }
+
+    #statusBar {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      margin: 10% auto;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 400px;
+      color: var(--text-primary);
+    }
+
+    .modal h3 {
+      margin-top: 0;
+      color: var(--accent);
+    }
+
+    .modal input {
+      width: 100%;
+      padding: 8px;
+      margin: 8px 0;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
       border-radius: 3px;
+      box-sizing: border-box;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 15px;
+    }
+
+    .modal button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .modal .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .modal .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    /* File input styling */
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+    }
+
+    .file-input-wrapper input[type=file] {
+      position: absolute;
+      left: -9999px;
+    }
+
+    .file-input-label {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .file-input-label:hover {
+      background: var(--accent);
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    /* Indentation guides */
+    .indent-guide {
+      position: absolute;
+      width: 1px;
+      background: var(--border);
+      opacity: 0.3;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <div class="file-input-wrapper">
+      <input type="file" id="fileInput" accept=".txt,.js,.html,.css,.py,.json,.xml,.md" multiple>
+      <label for="fileInput" class="file-input-label">📁 Open</label>
+    </div>
+    <button onclick="downloadFile()">💾 Save</button>
+    <button onclick="showGotoModal()">🔍 Go to Line</button>
+    
+    <div class="separator"></div>
+    
+    <button onclick="duplicateLine()">📋 Duplicate</button>
+    <button onclick="toggleBookmark()">🔖 Bookmark</button>
+    <button onclick="showFindModal()">🔎 Find</button>
+    
+    <div class="separator"></div>
+    
+    <label>Font Size:</label>
+    <input type="number" id="fontSizeSlider" min="8" max="32" value="14" onchange="changeFontSize(this.value)">
+    
+    <label>Theme:</label>
+    <select id="themeSelector" onchange="changeTheme(this.value)">
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+    </select>
+    
+    <div class="separator"></div>
+    
+    <button onclick="toggleMinimap()">🗺️ Minimap</button>
+    <button onclick="toggleLineHighlight()">📍 Line Highlight</button>
+  </div>
+
   <div id="main">
     <div id="editor">
       <div id="editorArea">
-        <div id="lineNumbers">1</div>
-        <textarea id="notepad" spellcheck="false" placeholder="Type your code here..."></textarea>
+        <div id="lineNumbers" class="clickable">1</div>
+        <div id="currentLineHighlight" class="current-line-highlight" style="display: none;"></div>
+        <textarea id="notepad" spellcheck="false" placeholder="Start coding... (Ctrl+/ to comment, Ctrl+D to duplicate line)"></textarea>
+        <div id="minimap"></div>
       </div>
       <div id="tabBar"></div>
     </div>
 
     <div id="tools">
-      <h3>Tools</h3>
+      <h3>🛠️ Tools</h3>
+      
+      <h3>Search & Replace</h3>
       <label>Search:</label>
-      <input type="text" id="searchBox">
-      <label>Replace with:</label>
-      <input type="text" id="replaceBox">
+      <input type="text" id="searchBox" placeholder="Search...">
+      <label>Replace:</label>
+      <input type="text" id="replaceBox" placeholder="Replace with...">
+      <label>
+        <input type="checkbox" id="regexMode"> Use Regex
+      </label>
       <button id="replaceBtn">Replace All</button>
 
-      <label style="margin-top:15px;">
+      <h3>Settings</h3>
+      <label>
         <input type="checkbox" id="wordWrap" checked> Word Wrap
       </label>
+      <label>
+        <input type="checkbox" id="showWhitespace"> Show Whitespace
+      </label>
+      <label>
+        <input type="checkbox" id="showIndentGuides"> Indent Guides
+      </label>
+      
+      <label>Language:</label>
+      <select id="languageSelector">
+        <option value="text">Plain Text</option>
+        <option value="javascript">JavaScript</option>
+        <option value="python">Python</option>
+        <option value="html">HTML</option>
+        <option value="css">CSS</option>
+        <option value="json">JSON</option>
+      </select>
 
-      <label style="margin-top:15px;">Comment Style:</label>
+      <label>Comment Style:</label>
       <select id="commentStyle">
-        <option value="#"># (Python, Bash)</option>
-        <option value=";">; (Nginx, INI)</option>
+        <option value="//">//  (JavaScript, C++)</option>
+        <option value="#">#   (Python, Bash)</option>
+        <option value=";">;   (Assembly, INI)</option>
+        <option value="--">--  (SQL, Lua)</option>
         <option value="'''" selected>''' Block (Python)</option>
       </select>
+
+      <h3>Code Tools</h3>
+      <button onclick="indentSelection()">→ Indent</button>
+      <button onclick="unindentSelection()">← Unindent</button>
+      <button onclick="trimWhitespace()">✂️ Trim Spaces</button>
+      <button onclick="convertTabsToSpaces()">🔄 Tabs→Spaces</button>
+      
+      <div id="storageStatus">Auto-saving enabled</div>
+      <button id="clearAllBtn" onclick="clearAllStorage()">🗑️ Clear All Data</button>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="statusBar">
+    <div class="status-item">
+      <span>Line: <span id="currentLine">1</span></span>
+    </div>
+    <div class="status-item">
+      <span>Col: <span id="currentCol">1</span></span>
+    </div>
+    <div class="status-item">
+      <span>Lines: <span id="totalLines">1</span></span>
+    </div>
+    <div class="status-item">
+      <span>Chars: <span id="charCount">0</span></span>
+    </div>
+    <div class="status-item">
+      <span id="languageStatus">Plain Text</span>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="gotoModal" class="modal">
+    <div class="modal-content">
+      <h3>Go to Line</h3>
+      <input type="number" id="gotoLineInput" placeholder="Line number" min="1">
+      <div class="modal-buttons">
+        <button class="btn-secondary" onclick="closeModal('gotoModal')">Cancel</button>
+        <button class="btn-primary" onclick="gotoLine()">Go</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="findModal" class="modal">
+    <div class="modal-content">
+      <h3>Find in Document</h3>
+      <input type="text" id="findInput" placeholder="Search for...">
+      <div class="modal-buttons">
+        <button class="btn-secondary" onclick="closeModal('findModal')">Cancel</button>
+        <button class="btn-primary" onclick="findText()">Find</button>
+      </div>
     </div>
   </div>
 
@@ -185,40 +606,135 @@
     const lineNumbers = document.getElementById('lineNumbers');
     const commentStyleSelector = document.getElementById('commentStyle');
     const tabBar = document.getElementById('tabBar');
+    const storageStatus = document.getElementById('storageStatus');
+    const minimap = document.getElementById('minimap');
+    const currentLineHighlight = document.getElementById('currentLineHighlight');
 
     let tabs = [];
     let activeTabId = null;
+    let autoSaveTimeout = null;
+    let bookmarks = new Set();
+    let showLineHighlight = false;
+    let showMinimap = false;
+    let currentSearchIndex = 0;
+    let searchResults = [];
 
-    function createTab(name = 'Untitled') {
+    // Local Storage Management
+    function saveToStorage() {
+      try {
+        saveCurrentTabContent();
+        const data = {
+          tabs: tabs,
+          activeTabId: activeTabId,
+          bookmarks: Array.from(bookmarks),
+          timestamp: Date.now()
+        };
+        localStorage.setItem('notepadData', JSON.stringify(data));
+        updateStorageStatus('Saved');
+      } catch (e) {
+        console.error('Failed to save to localStorage:', e);
+        updateStorageStatus('Save failed');
+      }
+    }
+
+    function loadFromStorage() {
+      try {
+        const saved = localStorage.getItem('notepadData');
+        if (saved) {
+          const data = JSON.parse(saved);
+          tabs = data.tabs || [];
+          activeTabId = data.activeTabId;
+          bookmarks = new Set(data.bookmarks || []);
+          
+          if (tabs.length > 0) {
+            renderTabs();
+            if (activeTabId && tabs.find(t => t.id === activeTabId)) {
+              switchTab(activeTabId);
+            } else {
+              switchTab(tabs[0].id);
+            }
+            updateStorageStatus('Loaded');
+            return true;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load from localStorage:', e);
+        updateStorageStatus('Load failed');
+      }
+      return false;
+    }
+
+    function updateStorageStatus(message) {
+      storageStatus.textContent = message;
+      setTimeout(() => {
+        storageStatus.textContent = 'Auto-saving enabled';
+      }, 2000);
+    }
+
+    function scheduleAutoSave() {
+      if (autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
+      }
+      autoSaveTimeout = setTimeout(() => {
+        saveToStorage();
+      }, 1000);
+    }
+
+    function createTab(name = 'Untitled', content = '', language = 'text') {
       const id = Date.now().toString();
-      tabs.push({ id, name, content: '' });
+      tabs.push({ id, name, content, language });
       renderTabs();
       switchTab(id);
+      saveToStorage();
     }
 
     function switchTab(id) {
       saveCurrentTabContent();
       activeTabId = id;
       const tab = tabs.find(t => t.id === id);
-      textarea.value = tab ? tab.content : '';
+      if (tab) {
+        textarea.value = tab.content;
+        document.getElementById('languageSelector').value = tab.language || 'text';
+        updateLanguageStatus(tab.language || 'text');
+      } else {
+        textarea.value = '';
+      }
       updateLineNumbers();
+      updateStatusBar();
+      updateMinimap();
+      scheduleAutoSave();
     }
 
     function saveCurrentTabContent() {
       if (!activeTabId) return;
       const tab = tabs.find(t => t.id === activeTabId);
-      if (tab) tab.content = textarea.value;
+      if (tab) {
+        tab.content = textarea.value;
+        tab.language = document.getElementById('languageSelector').value;
+      }
     }
 
     function closeTab(id) {
-      const index = tabs.findIndex(t => t.id === id);
-      if (index !== -1) {
-        tabs.splice(index, 1);
-        if (activeTabId === id) {
-          const fallback = tabs[index] || tabs[index - 1];
-          fallback ? switchTab(fallback.id) : (activeTabId = null, textarea.value = '', updateLineNumbers());
+      if (confirm('Are you sure you want to permanently delete this tab?')) {
+        const index = tabs.findIndex(t => t.id === id);
+        if (index !== -1) {
+          tabs.splice(index, 1);
+          
+          if (activeTabId === id) {
+            const fallback = tabs[index] || tabs[index - 1];
+            if (fallback) {
+              switchTab(fallback.id);
+            } else {
+              activeTabId = null;
+              textarea.value = '';
+              updateLineNumbers();
+              createTab('Untitled');
+              return;
+            }
+          }
+          renderTabs();
+          saveToStorage();
         }
-        renderTabs();
       }
     }
 
@@ -228,10 +744,11 @@
         const tabEl = document.createElement('div');
         tabEl.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
 
-        const nameSpan = document.createElement('span');
+        const nameSpan = document.createElement('div');
+        nameSpan.className = 'tab-name';
         nameSpan.textContent = tab.name;
+        nameSpan.title = tab.name;
 
-        // Rename logic
         nameSpan.addEventListener('dblclick', (e) => {
           e.stopPropagation();
           const input = document.createElement('input');
@@ -240,20 +757,24 @@
           input.addEventListener('blur', () => {
             tab.name = input.value.trim() || tab.name;
             renderTabs();
+            saveToStorage();
           });
           input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
               tab.name = input.value.trim() || tab.name;
               renderTabs();
+              saveToStorage();
             }
           });
           tabEl.replaceChild(input, nameSpan);
           input.focus();
+          input.select();
         });
 
         tabEl.appendChild(nameSpan);
 
-        const closeBtn = document.createElement('span');
+        const closeBtn = document.createElement('div');
+        closeBtn.className = 'close-btn';
         closeBtn.textContent = '×';
         closeBtn.title = 'Close tab';
         closeBtn.addEventListener('click', (e) => {
@@ -269,27 +790,362 @@
       const addBtn = document.createElement('div');
       addBtn.id = 'addTab';
       addBtn.textContent = '+';
+      addBtn.title = 'Add new tab';
       addBtn.addEventListener('click', () => createTab(`Tab ${tabs.length + 1}`));
       tabBar.appendChild(addBtn);
     }
 
     function updateLineNumbers() {
-      const count = textarea.value.split('\n').length;
-      lineNumbers.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
+      const lines = textarea.value.split('\n');
+      const currentLine = getCurrentLine();
+      
+      lineNumbers.innerHTML = lines.map((line, index) => {
+        const lineNum = index + 1;
+        const isBookmarked = bookmarks.has(lineNum);
+        const isCurrent = lineNum === currentLine;
+        const classes = ['line-number'];
+        if (isBookmarked) classes.push('bookmarked');
+        if (isCurrent) classes.push('current-line');
+        
+        return `<span class="${classes.join(' ')}" data-line="${lineNum}">${lineNum}</span>`;
+      }).join('\n');
+      
+      updateCurrentLineHighlight();
     }
 
+    function updateStatusBar() {
+      const cursorPos = textarea.selectionStart;
+      const textBeforeCursor = textarea.value.substring(0, cursorPos);
+      const currentLine = textBeforeCursor.split('\n').length;
+      const currentCol = textBeforeCursor.split('\n').pop().length + 1;
+      const totalLines = textarea.value.split('\n').length;
+      const charCount = textarea.value.length;
+
+      document.getElementById('currentLine').textContent = currentLine;
+      document.getElementById('currentCol').textContent = currentCol;
+      document.getElementById('totalLines').textContent = totalLines;
+      document.getElementById('charCount').textContent = charCount;
+    }
+
+    function updateCurrentLineHighlight() {
+      if (!showLineHighlight) return;
+      
+      const currentLine = getCurrentLine();
+      const lineHeight = 19.6; // Approximate line height
+      const top = (currentLine - 1) * lineHeight + 10; // 10px padding
+      
+      currentLineHighlight.style.top = top + 'px';
+      currentLineHighlight.style.display = 'block';
+    }
+
+    function getCurrentLine() {
+      const cursorPos = textarea.selectionStart;
+      const textBeforeCursor = textarea.value.substring(0, cursorPos);
+      return textBeforeCursor.split('\n').length;
+    }
+
+    function updateMinimap() {
+      if (!showMinimap) return;
+      
+      const content = textarea.value;
+      const lines = content.split('\n');
+      const preview = lines.map(line => 
+        line.substring(0, 80) + (line.length > 80 ? '...' : '')
+      ).join('\n');
+      
+      minimap.textContent = preview;
+    }
+
+    function updateLanguageStatus(language) {
+      const languageNames = {
+        'text': 'Plain Text',
+        'javascript': 'JavaScript',
+        'python': 'Python',
+        'html': 'HTML',
+        'css': 'CSS',
+        'json': 'JSON'
+      };
+      document.getElementById('languageStatus').textContent = languageNames[language] || language;
+      
+      // Update comment style based on language
+      const commentStyles = {
+        'javascript': '//',
+        'python': '#',
+        'html': '<!--',
+        'css': '/*',
+        'json': '//'
+      };
+      
+      if (commentStyles[language]) {
+        commentStyleSelector.value = commentStyles[language];
+      }
+    }
+
+    // File operations
+    function downloadFile() {
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      if (!activeTab) return;
+      
+      saveCurrentTabContent();
+      const blob = new Blob([activeTab.content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = activeTab.name + '.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      Array.from(e.target.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const content = e.target.result;
+          const extension = file.name.split('.').pop().toLowerCase();
+          const languageMap = {
+            'js': 'javascript',
+            'py': 'python',
+            'html': 'html',
+            'css': 'css',
+            'json': 'json'
+          };
+          const language = languageMap[extension] || 'text';
+          
+          createTab(file.name, content, language);
+        };
+        reader.readAsText(file);
+      });
+    });
+
+    // Modal functions
+    function showModal(modalId) {
+      document.getElementById(modalId).style.display = 'block';
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    function showGotoModal() {
+      showModal('gotoModal');
+      document.getElementById('gotoLineInput').focus();
+    }
+
+    function showFindModal() {
+      showModal('findModal');
+      document.getElementById('findInput').focus();
+    }
+
+    function gotoLine() {
+      const lineNum = parseInt(document.getElementById('gotoLineInput').value);
+      if (lineNum && lineNum > 0) {
+        const lines = textarea.value.split('\n');
+        if (lineNum <= lines.length) {
+          const position = lines.slice(0, lineNum - 1).join('\n').length + (lineNum > 1 ? 1 : 0);
+          textarea.selectionStart = textarea.selectionEnd = position;
+          textarea.focus();
+          updateStatusBar();
+        }
+      }
+      closeModal('gotoModal');
+    }
+
+    function findText() {
+      const searchTerm = document.getElementById('findInput').value;
+      if (!searchTerm) return;
+      
+      const content = textarea.value.toLowerCase();
+      const term = searchTerm.toLowerCase();
+      const index = content.indexOf(term, textarea.selectionStart);
+      
+      if (index !== -1) {
+        textarea.selectionStart = index;
+        textarea.selectionEnd = index + searchTerm.length;
+        textarea.focus();
+      } else {
+        alert('Text not found');
+      }
+      closeModal('findModal');
+    }
+
+    // Tool functions
+    function changeFontSize(size) {
+      textarea.style.fontSize = size + 'px';
+      lineNumbers.style.fontSize = size + 'px';
+    }
+
+    function changeTheme(theme) {
+      if (theme === 'light') {
+        document.body.classList.add('light-theme');
+      } else {
+        document.body.classList.remove('light-theme');
+      }
+    }
+
+    function toggleMinimap() {
+      showMinimap = !showMinimap;
+      if (showMinimap) {
+        minimap.classList.add('show');
+        updateMinimap();
+      } else {
+        minimap.classList.remove('show');
+      }
+    }
+
+    function toggleLineHighlight() {
+      showLineHighlight = !showLineHighlight;
+      if (showLineHighlight) {
+        updateCurrentLineHighlight();
+      } else {
+        currentLineHighlight.style.display = 'none';
+      }
+    }
+
+    function toggleBookmark() {
+      const currentLine = getCurrentLine();
+      if (bookmarks.has(currentLine)) {
+        bookmarks.delete(currentLine);
+      } else {
+        bookmarks.add(currentLine);
+      }
+      updateLineNumbers();
+      saveToStorage();
+    }
+
+    function duplicateLine() {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+      
+      // Find the current line
+      const beforeCursor = value.substring(0, start);
+      const afterCursor = value.substring(end);
+      const lines = beforeCursor.split('\n');
+      const currentLineStart = beforeCursor.length - lines[lines.length - 1].length;
+      const currentLineEnd = value.indexOf('\n', end);
+      const lineEnd = currentLineEnd === -1 ? value.length : currentLineEnd;
+      
+      const currentLine = value.substring(currentLineStart, lineEnd);
+      const newContent = value.substring(0, lineEnd) + '\n' + currentLine + value.substring(lineEnd);
+      
+      textarea.value = newContent;
+      textarea.selectionStart = textarea.selectionEnd = lineEnd + currentLine.length + 1;
+      updateLineNumbers();
+      updateStatusBar();
+      scheduleAutoSave();
+    }
+
+    function indentSelection() {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+      const selected = value.slice(start, end);
+      
+      if (selected.includes('\n')) {
+        // Multi-line selection
+        const lines = selected.split('\n');
+        const indentedLines = lines.map(line => '    ' + line);
+        const newContent = value.slice(0, start) + indentedLines.join('\n') + value.slice(end);
+        textarea.value = newContent;
+        textarea.selectionStart = start;
+        textarea.selectionEnd = end + (lines.length * 4);
+      } else {
+        // Single line or no selection
+        textarea.value = value.slice(0, start) + '    ' + value.slice(start);
+        textarea.selectionStart = textarea.selectionEnd = start + 4;
+      }
+      
+      updateLineNumbers();
+      scheduleAutoSave();
+    }
+
+    function unindentSelection() {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+      const selected = value.slice(start, end);
+      
+      if (selected.includes('\n')) {
+        // Multi-line selection
+        const lines = selected.split('\n');
+        const unindentedLines = lines.map(line => line.replace(/^    /, ''));
+        const newContent = value.slice(0, start) + unindentedLines.join('\n') + value.slice(end);
+        textarea.value = newContent;
+        textarea.selectionStart = start;
+        textarea.selectionEnd = end - (lines.length * 4);
+      } else {
+        // Single line
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = value.indexOf('\n', start);
+        const line = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+        
+        if (line.startsWith('    ')) {
+          const newLine = line.substring(4);
+          const before = value.slice(0, lineStart);
+          const after = value.slice(lineEnd === -1 ? value.length : lineEnd);
+          textarea.value = before + newLine + after;
+          textarea.selectionStart = textarea.selectionEnd = start - 4;
+        }
+      }
+      
+      updateLineNumbers();
+      scheduleAutoSave();
+    }
+
+    function trimWhitespace() {
+      const lines = textarea.value.split('\n');
+      const trimmedLines = lines.map(line => line.trimEnd());
+      textarea.value = trimmedLines.join('\n');
+      updateLineNumbers();
+      scheduleAutoSave();
+    }
+
+    function convertTabsToSpaces() {
+      textarea.value = textarea.value.replace(/\t/g, '    ');
+      updateLineNumbers();
+      scheduleAutoSave();
+    }
+
+    function clearAllStorage() {
+      if (confirm('Are you sure you want to clear all saved data? This cannot be undone.')) {
+        localStorage.removeItem('notepadData');
+        tabs = [];
+        activeTabId = null;
+        bookmarks = new Set();
+        textarea.value = '';
+        renderTabs();
+        createTab('Untitled');
+        updateStorageStatus('Cleared');
+      }
+    }
+
+    // Event listeners
     textarea.addEventListener('keydown', function (e) {
       const start = this.selectionStart;
       const end = this.selectionEnd;
       const value = this.value;
 
-      if (e.key === 'Tab') {
+      // Tab handling
+      if (e.key === 'Tab' && !e.shiftKey) {
         e.preventDefault();
-        const indent = '   ';
-        this.value = value.slice(0, start) + indent + value.slice(end);
-        this.selectionStart = this.selectionEnd = start + indent.length;
+        if (start !== end) {
+          indentSelection();
+        } else {
+          const indent = '    ';
+          this.value = value.slice(0, start) + indent + value.slice(end);
+          this.selectionStart = this.selectionEnd = start + indent.length;
+        }
+        return;
       }
 
+      // Shift+Tab for unindent
+      if (e.key === 'Tab' && e.shiftKey) {
+        e.preventDefault();
+        unindentSelection();
+        return;
+      }
+
+      // Enter key with auto-indentation
       if (e.key === 'Enter') {
         e.preventDefault();
         const before = value.slice(0, start);
@@ -297,51 +1153,52 @@
         const lines = before.split('\n');
         const lastLine = lines[lines.length - 1];
         const indent = lastLine.match(/^\s*/)?.[0] || '';
-        const addIndent = lastLine.trim().endsWith(':') ? indent + '   ' : indent;
+        const addIndent = lastLine.trim().endsWith(':') || lastLine.trim().endsWith('{') ? indent + '    ' : indent;
         this.value = before + '\n' + addIndent + after;
         this.selectionStart = this.selectionEnd = start + 1 + addIndent.length;
         updateLineNumbers();
+        updateStatusBar();
+        return;
       }
 
-      if (e.key === 'Backspace') {
-        if (start === end) {
-          const before = value.slice(0, start);
-          const after = value.slice(end);
-          const last = before.slice(-3);
-          if (last === '   ') {
+      // Smart backspace
+      if (e.key === 'Backspace' && start === end) {
+        const before = value.slice(0, start);
+        const last4 = before.slice(-4);
+        if (last4 === '    ') {
+          e.preventDefault();
+          this.value = before.slice(0, -4) + value.slice(end);
+          this.selectionStart = this.selectionEnd = start - 4;
+          updateLineNumbers();
+          updateStatusBar();
+          return;
+        }
+      }
+
+      // Keyboard shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+          case '/':
             e.preventDefault();
-            this.value = before.slice(0, -3) + after;
-            this.selectionStart = this.selectionEnd = start - 3;
-          }
+            toggleComment();
+            break;
+          case 'd':
+            e.preventDefault();
+            duplicateLine();
+            break;
+          case 'g':
+            e.preventDefault();
+            showGotoModal();
+            break;
+          case 'f':
+            e.preventDefault();
+            showFindModal();
+            break;
         }
       }
     });
 
-    textarea.addEventListener('input', updateLineNumbers);
-    textarea.addEventListener('scroll', () => {
-      lineNumbers.scrollTop = textarea.scrollTop;
-    });
-
-    document.getElementById('wordWrap').addEventListener('change', (e) => {
-      textarea.style.whiteSpace = e.target.checked ? 'pre-wrap' : 'pre';
-      textarea.style.wordWrap = e.target.checked ? 'break-word' : 'normal';
-    });
-
-    document.getElementById('replaceBtn').addEventListener('click', () => {
-      const search = document.getElementById('searchBox').value;
-      const replace = document.getElementById('replaceBox').value;
-      if (!search) return;
-      textarea.value = textarea.value.replace(new RegExp(search, 'g'), replace);
-      updateLineNumbers();
-    });
-
-    document.addEventListener('keydown', function (e) {
-      const isMac = navigator.platform.toUpperCase().includes('MAC');
-      const isShortcut = (isMac && e.metaKey && e.key === '/') || (!isMac && e.ctrlKey && e.key === '/');
-      if (!isShortcut) return;
-
-      e.preventDefault();
-
+    function toggleComment() {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const value = textarea.value;
@@ -359,10 +1216,11 @@
         }
       } else {
         const lines = selected.split('\n');
-        const allCommented = lines.every(line => line.trim().startsWith(style));
+        const allCommented = lines.every(line => line.trim().startsWith(style) || line.trim() === '');
         const newLines = lines.map(line => {
+          if (line.trim() === '') return line;
           if (allCommented) {
-            return line.replace(new RegExp(`^(\\s*)${style}\\s?`), '$1');
+            return line.replace(new RegExp(`^(\\s*)${style.replace(/[.*+?^${}()|[\]\\]/g, '\\          textarea.selectionStart = textarea.selectionEnd = position;')}\\s?`), '$1');
           } else {
             return line.replace(/^(\s*)/, `$1${style} `);
           }
@@ -371,11 +1229,109 @@
       }
 
       updateLineNumbers();
+      scheduleAutoSave();
+    }
+
+    textarea.addEventListener('input', function() {
+      updateLineNumbers();
+      updateStatusBar();
+      updateMinimap();
+      scheduleAutoSave();
+    });
+    
+    textarea.addEventListener('scroll', () => {
+      lineNumbers.scrollTop = textarea.scrollTop;
+      updateCurrentLineHighlight();
     });
 
-    // Start with one tab
-    createTab('Tab 1');
+    textarea.addEventListener('selectionchange', updateStatusBar);
+    textarea.addEventListener('click', updateStatusBar);
+    textarea.addEventListener('keyup', updateStatusBar);
+
+    // Line number click for bookmarks
+    lineNumbers.addEventListener('click', function(e) {
+      const lineSpan = e.target.closest('.line-number');
+      if (lineSpan) {
+        const lineNum = parseInt(lineSpan.dataset.line);
+        if (bookmarks.has(lineNum)) {
+          bookmarks.delete(lineNum);
+        } else {
+          bookmarks.add(lineNum);
+        }
+        updateLineNumbers();
+        saveToStorage();
+      }
+    });
+
+    // Settings event listeners
+    document.getElementById('wordWrap').addEventListener('change', (e) => {
+      textarea.style.whiteSpace = e.target.checked ? 'pre-wrap' : 'pre';
+      textarea.style.wordWrap = e.target.checked ? 'break-word' : 'normal';
+    });
+
+    document.getElementById('showWhitespace').addEventListener('change', (e) => {
+      // This would require more complex implementation
+      console.log('Show whitespace:', e.target.checked);
+    });
+
+    document.getElementById('showIndentGuides').addEventListener('change', (e) => {
+      // This would require more complex implementation
+      console.log('Show indent guides:', e.target.checked);
+    });
+
+    document.getElementById('languageSelector').addEventListener('change', (e) => {
+      updateLanguageStatus(e.target.value);
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      if (activeTab) {
+        activeTab.language = e.target.value;
+        saveToStorage();
+      }
+    });
+
+    document.getElementById('replaceBtn').addEventListener('click', () => {
+      const search = document.getElementById('searchBox').value;
+      const replace = document.getElementById('replaceBox').value;
+      const useRegex = document.getElementById('regexMode').checked;
+      
+      if (!search) return;
+      
+      try {
+        const regex = useRegex ? new RegExp(search, 'g') : new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\          textarea.selectionStart = textarea.selectionEnd = position;'), 'g');
+        textarea.value = textarea.value.replace(regex, replace);
+        updateLineNumbers();
+        updateStatusBar();
+        scheduleAutoSave();
+      } catch (e) {
+        alert('Invalid regex pattern');
+      }
+    });
+
+    // Modal close on click outside
+    window.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) {
+        e.target.style.display = 'none';
+      }
+    });
+
+    // Auto-save before page unload
+    window.addEventListener('beforeunload', function(e) {
+      saveToStorage();
+    });
+
+    // Auto-save periodically
+    setInterval(() => {
+      saveToStorage();
+    }, 30000);
+
+    // Initialize
+    function init() {
+      if (!loadFromStorage()) {
+        createTab('Untitled');
+      }
+      updateStatusBar();
+    }
+
+    init();
   </script>
 </body>
 </html>
-
