@@ -1,468 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Very Stupid Notepad(Stupidpad)</title>
-  <style>
-    :root {
-      --bg-primary: #1e1e1e;
-      --bg-secondary: #252526;
-      --bg-tertiary: #2d2d30;
-      --text-primary: #cccccc;
-      --text-secondary: #969696;
-      --border: #3e3e42;
-      --accent: #007acc;
-      --accent-hover: #1177bb;
-      --error: #f44336;
-      --success: #4caf50;
-      --warning: #ff9800;
-    }
+<meta charset="UTF-8" />
+<title>Very Stupid Notepad (Stupidpad)</title>
+<style>
+  :root{
+    --bg-primary:#1e1e1e;--bg-secondary:#252526;--bg-tertiary:#2d2d30;
+    --text-primary:#cccccc;--text-secondary:#969696;--border:#3e3e42;
+    --accent:#007acc;--accent-hover:#1177bb;--error:#f44336
+  }
+  body{margin:0;display:flex;height:100vh;font-family:Consolas,Monaco,'Courier New',monospace;background:var(--bg-primary);color:var(--text-primary);flex-direction:column}
+  body.light-theme{--bg-primary:#ffffff;--bg-secondary:#f8f8f8;--bg-tertiary:#eeeeee;--text-primary:#333333;--text-secondary:#666666;--border:#d0d0d0}
 
-    body {
-      margin: 0;
-      display: flex;
-      height: 100vh;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      flex-direction: column;
-    }
+  #toolbar{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px}
+  #toolbar button,#toolbar select,#toolbar input[type=number]{background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);padding:4px 8px;border-radius:3px;cursor:pointer;font:inherit}
+  #toolbar button:hover{background:var(--accent)}
+  .separator{width:1px;height:20px;background:var(--border);margin:0 4px}
+  .file-input-wrapper{position:relative;overflow:hidden;display:inline-block}
+  .file-input-wrapper input[type=file]{position:absolute;left:-9999px}
+  .file-input-label{padding:4px 8px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:12px}
+  .file-input-label:hover{background:var(--accent)}
 
-    body.light-theme {
-      --bg-primary: #ffffff;
-      --bg-secondary: #f8f8f8;
-      --bg-tertiary: #eeeeee;
-      --text-primary: #333333;
-      --text-secondary: #666666;
-      --border: #d0d0d0;
-    }
+  #main{display:flex;flex:1;overflow:hidden}
+  #editor{flex:1;display:flex;flex-direction:column;position:relative}
+  #editorArea{display:flex;flex:1;overflow:hidden}
+  #panesContainer{display:flex;flex:1;overflow:hidden;gap:0;flex-direction:row}
 
-    #toolbar {
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border);
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      font-size: 12px;
-    }
+  .pane{display:flex;position:relative;flex:1 1 0;min-width:220px;border-right:1px solid var(--border)}
+  .pane:last-child{border-right:none}
 
-    #toolbar button, #toolbar select, #toolbar input[type="number"] {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      padding: 4px 8px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-      font-family: inherit;
-    }
+  .gutter{
+    width:50px;background:var(--bg-secondary);color:var(--text-secondary);text-align:right;
+    padding:10px 8px 10px 4px;font:inherit;white-space:normal; /* IMPORTANT: no 'pre' */
+    overflow:hidden;user-select:none;border-right:1px solid var(--border);box-sizing:border-box
+  }
+  .gutter .line-number{display:block}
+  .gutter .line-number.current-line{background:var(--bg-tertiary);color:var(--text-primary);font-weight:600}
 
-    #toolbar button:hover {
-      background: var(--accent);
-    }
+  textarea{flex:1;font:inherit;padding:10px;border:none;outline:none;resize:none;background:var(--bg-primary);
+    color:var(--text-primary);white-space:pre-wrap;word-wrap:break-word;overflow:auto;tab-size:3;line-height:1.5}
+  textarea::selection{background:var(--accent);color:#fff}
 
-    #toolbar .separator {
-      width: 1px;
-      height: 20px;
-      background: var(--border);
-      margin: 0 4px;
-    }
+  .current-line-highlight{position:absolute;left:50px;right:0;background:rgba(255,255,255,.06);pointer-events:none;z-index:1;height:0;display:none}
 
-    #main {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
+  .resizer{width:6px;cursor:col-resize;background:transparent;position:relative}
+  .resizer::after{content:'';position:absolute;top:0;bottom:0;left:2px;width:2px;background:var(--border);opacity:.8}
+  .resizer.vertical{height:6px;width:100%;cursor:row-resize}
+  .resizer.vertical::after{top:2px;left:0;right:0;height:2px;width:100%}
 
-    #editor {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: var(--bg-primary);
-      position: relative;
-    }
+  #tools{width:280px;background:var(--bg-secondary);color:var(--text-primary);padding:15px;box-sizing:border-box;border-left:1px solid var(--border);overflow-y:auto}
+  #tools h3{margin:0 0 10px;font-size:14px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:5px}
+  #tools label{display:block;margin-top:10px;font-size:12px}
+  #tools input[type=text],#tools input[type=number],#tools select{width:100%;padding:6px;margin-top:3px;box-sizing:border-box;font-size:12px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:3px}
+  #tools button{margin-top:8px;padding:6px 10px;border:1px solid var(--border);background:var(--bg-tertiary);color:var(--text-primary);cursor:pointer;border-radius:3px;font-size:12px}
+  #tools button:hover{background:var(--accent)}
 
-    #editorArea {
-      display: flex;
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-    }
+  /* Tab strip — tightened height */
+  #tabBar{
+    display:flex;background:var(--bg-secondary);
+    border-top:1px solid var(--border);
+    padding:2px 6px 0;
+    overflow-x:auto;min-height:28px;
+  }
+  .tab{
+    padding:4px 8px;
+    background:var(--bg-tertiary);
+    margin-right:4px;border-radius:6px 6px 0 0;cursor:pointer;display:flex;align-items:center;
+    user-select:none;border:1px solid var(--border);border-bottom:none;position:relative;transition:all .2s ease;
+    font-size:12px;color:var(--text-secondary);min-width:80px;max-width:200px;height:24px;
+  }
+  .tab:hover{background:var(--bg-primary);color:var(--text-primary)}
+  .tab.active{background:var(--bg-primary);color:var(--text-primary);font-weight:500;border-color:var(--accent)}
+  .tab .tab-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px}
+  .tab .close-btn{
+    margin-left:6px;color:var(--text-secondary);cursor:pointer;width:14px;height:14px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;line-height:1;transition:all .2s ease;flex-shrink:0
+  }
+  .tab .close-btn:hover{background:var(--error);color:#fff}
+  #addTab{
+    background:var(--accent);color:#fff;font-weight:bold;padding:4px 8px;cursor:pointer;border-radius:6px 6px 0 0;display:flex;align-items:center;justify-content:center;
+    font-size:14px;min-width:26px;border:1px solid var(--accent);border-bottom:none;transition:all .2s ease;height:24px
+  }
+  #addTab:hover{background:var(--accent-hover)}
+  .tab input.tab-rename{user-select:text;height:20px;padding:1px 6px}
 
-    #lineNumbers {
-      width: 50px;
-      background: var(--bg-secondary);
-      color: var(--text-secondary);
-      text-align: right;
-      padding: 10px 8px 10px 4px;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      font-size: 14px;
-      line-height: 1.4;
-      white-space: pre;
-      overflow: hidden;
-      user-select: none;
-      border-right: 1px solid var(--border);
-      box-sizing: border-box;
-    }
+  #statusBar{background:var(--bg-secondary);border-top:1px solid var(--border);padding:4px 12px;font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .status-item{display:flex;align-items:center;gap:4px}
+  .pill{background:var(--bg-tertiary);border:1px solid var(--border);padding:2px 6px;border-radius:999px}
 
-    #lineNumbers.clickable {
-      cursor: pointer;
-    }
-
-    #lineNumbers .line-number {
-      display: block;
-      position: relative;
-    }
-
-    #lineNumbers .line-number.bookmarked::before {
-      content: '●';
-      position: absolute;
-      left: -12px;
-      color: var(--accent);
-      font-size: 12px;
-    }
-
-    #lineNumbers .line-number.current-line {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      font-weight: bold;
-    }
-
-    textarea {
-      flex: 1;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      font-size: 14px;
-      padding: 10px;
-      border: none;
-      outline: none;
-      resize: none;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      overflow-x: auto;
-      overflow-y: scroll;
-      line-height: 1.4;
-      tab-size: 4;
-    }
-
-    textarea::selection {
-      background: var(--accent);
-      color: white;
-    }
-
-    .current-line-highlight {
-      position: absolute;
-      left: 50px;
-      right: 0;
-      background: rgba(255, 255, 255, 0.05);
-      pointer-events: none;
-      z-index: 1;
-      height: 19.6px;
-    }
-
-    #minimap {
-      width: 120px;
-      background: var(--bg-secondary);
-      border-left: 1px solid var(--border);
-      overflow: hidden;
-      font-family: 'Consolas', 'Monaco', monospace;
-      font-size: 2px;
-      line-height: 2px;
-      padding: 4px;
-      color: var(--text-secondary);
-      white-space: pre;
-      word-wrap: break-word;
-      display: none;
-    }
-
-    #minimap.show {
-      display: block;
-    }
-
-    #tools {
-      width: 280px;
-      background: var(--bg-secondary);
-      color: var(--text-primary);
-      padding: 15px;
-      box-sizing: border-box;
-      border-left: 1px solid var(--border);
-      overflow-y: auto;
-    }
-
-    #tools h3 {
-      margin: 0 0 10px 0;
-      font-size: 14px;
-      color: var(--accent);
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 5px;
-    }
-
-    #tools label {
-      display: block;
-      margin-top: 10px;
-      font-size: 12px;
-    }
-
-    #tools input[type="text"], #tools input[type="number"], #tools select {
-      width: 100%;
-      padding: 6px;
-      margin-top: 3px;
-      box-sizing: border-box;
-      font-size: 12px;
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-    }
-
-    #tools button {
-      margin-top: 8px;
-      padding: 6px 10px;
-      border: none;
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      cursor: pointer;
-      border-radius: 3px;
-      font-size: 12px;
-      border: 1px solid var(--border);
-    }
-
-    #tools button:hover {
-      background: var(--accent);
-    }
-
-    #tabBar {
-      display: flex;
-      background: var(--bg-secondary);
-      border-top: 1px solid var(--border);
-      padding: 4px 8px 0;
-      overflow-x: auto;
-      min-height: 36px;
-    }
-
-    .tab {
-      padding: 8px 12px;
-      background: var(--bg-tertiary);
-      margin-right: 4px;
-      border-radius: 6px 6px 0 0;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      user-select: none;
-      border: 1px solid var(--border);
-      border-bottom: none;
-      position: relative;
-      transition: all 0.2s ease;
-      font-size: 12px;
-      color: var(--text-secondary);
-      min-width: 80px;
-      max-width: 200px;
-    }
-
-    .tab:hover {
-      background: var(--bg-primary);
-      color: var(--text-primary);
-    }
-
-    .tab.active {
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      font-weight: 500;
-      border-color: var(--accent);
-    }
-
-    .tab .tab-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      margin-right: 8px;
-    }
-
-    .tab .close-btn {
-      margin-left: 8px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      font-weight: bold;
-      line-height: 1;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    .tab .close-btn:hover {
-      background: var(--error);
-      color: white;
-    }
-
-    #addTab {
-      background: var(--accent);
-      color: white;
-      font-weight: bold;
-      padding: 8px 12px;
-      cursor: pointer;
-      border-radius: 6px 6px 0 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      min-width: 30px;
-      border: 1px solid var(--accent);
-      border-bottom: none;
-      transition: all 0.2s ease;
-    }
-
-    #addTab:hover {
-      background: var(--accent-hover);
-    }
-
-    #statusBar {
-      background: var(--bg-secondary);
-      border-top: 1px solid var(--border);
-      padding: 4px 12px;
-      font-size: 11px;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .status-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    /* Modal styles */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-    }
-
-    .modal-content {
-      background: var(--bg-secondary);
-      margin: 10% auto;
-      padding: 20px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      width: 400px;
-      color: var(--text-primary);
-    }
-
-    .modal h3 {
-      margin-top: 0;
-      color: var(--accent);
-    }
-
-    .modal input {
-      width: 100%;
-      padding: 8px;
-      margin: 8px 0;
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      box-sizing: border-box;
-    }
-
-    .modal-buttons {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-      margin-top: 15px;
-    }
-
-    .modal button {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-
-    .modal .btn-primary {
-      background: var(--accent);
-      color: white;
-    }
-
-    .modal .btn-secondary {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-    }
-
-    /* File input styling */
-    .file-input-wrapper {
-      position: relative;
-      overflow: hidden;
-      display: inline-block;
-    }
-
-    .file-input-wrapper input[type=file] {
-      position: absolute;
-      left: -9999px;
-    }
-
-    .file-input-label {
-      padding: 4px 8px;
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-
-    .file-input-label:hover {
-      background: var(--accent);
-    }
-
-    /* Scrollbar styling */
-    ::-webkit-scrollbar {
-      width: 12px;
-      height: 12px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--bg-secondary);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 6px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--text-secondary);
-    }
-
-    /* Indentation guides */
-    .indent-guide {
-      position: absolute;
-      width: 1px;
-      background: var(--border);
-      opacity: 0.3;
-      pointer-events: none;
-    }
-  </style>
+  /* Diff / Modal */
+  .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
+  .modal-content{background:var(--bg-secondary);margin:5% auto;padding:16px;border:1px solid var(--border);border-radius:6px;width:760px;color:var(--text-primary);max-height:80vh;overflow:auto}
+  .modal h3{margin:0 0 8px;color:var(--accent)}
+  .modal .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .diff-grid{display:grid;grid-template-columns:1fr 60px 1fr;gap:8px}
+  .diff-col{background:var(--bg-primary);padding:6px;border-radius:4px;white-space:pre-wrap;overflow:auto;max-height:260px;min-height:120px}
+  .diff-mid{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:flex-start}
+  .line{padding:2px 4px;border-radius:4px;margin:1px 0}
+  .line.changed{background:rgba(255,255,255,.04)}
+  .token.add{background:rgba(76,175,80,.35)}
+  .token.del{background:rgba(244,67,54,.35)}
+  ::-webkit-scrollbar{width:12px;height:12px}
+  ::-webkit-scrollbar-track{background:var(--bg-secondary)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-secondary)}
+</style>
 </head>
 <body class="light-theme">
-  <!-- Toolbar -->
   <div id="toolbar">
     <div class="file-input-wrapper">
       <input type="file" id="fileInput" accept=".txt,.js,.html,.css,.py,.json,.xml,.md" multiple>
@@ -470,71 +114,51 @@
     </div>
     <button onclick="downloadFile()">💾 Save</button>
     <button onclick="showGotoModal()">🔍 Go to Line</button>
-    
     <div class="separator"></div>
-    
     <button onclick="duplicateLine()">📋 Duplicate</button>
-    <button onclick="toggleBookmark()">🔖 Bookmark</button>
     <button onclick="showFindModal()">🔎 Find</button>
-    
     <div class="separator"></div>
-    
-    <label>Font Size:</label>
-    <input type="number" id="fontSizeSlider" min="8" max="32" value="14" onchange="changeFontSize(this.value)">
-    
+    <label>Font Size:</label><input type="number" id="fontSizeSlider" min="8" max="32" value="14" onchange="changeFontSize(this.value)">
     <label>Theme:</label>
     <select id="themeSelector" onchange="changeTheme(this.value)">
-      <option value="light">Light</option>
-      <option value="dark">Dark</option>
-      
+      <option value="light">Light</option><option value="dark">Dark</option>
     </select>
-    
     <div class="separator"></div>
-    
-    <button onclick="toggleMinimap()">🗺️ Minimap</button>
-    <button onclick="toggleLineHighlight()">📍 Line Highlight</button>
+    <button onclick="addPartition()">➕ Add Partition</button>
+    <button onclick="removeLastPartition()">➖ Remove Last</button>
+    <button onclick="equalizePartitions()">↔ Equalize</button>
+    <label>Layout:</label>
+    <select id="layoutSelector" onchange="setLayout(this.value)">
+      <option value="row">Side by side</option><option value="column">Stacked</option>
+    </select>
+    <div class="separator"></div>
+    <button onclick="openDiff()">🧩 Diff</button>
   </div>
 
   <div id="main">
     <div id="editor">
       <div id="editorArea">
-        <div id="lineNumbers" class="clickable">1</div>
-        <div id="currentLineHighlight" class="current-line-highlight" style="display: none;"></div>
-        <textarea id="notepad" spellcheck="false" placeholder="Start coding... (Ctrl+/ to comment, Ctrl+D to duplicate line)"></textarea>
-        <div id="minimap"></div>
+        <div id="panesContainer"></div>
       </div>
       <div id="tabBar"></div>
     </div>
 
     <div id="tools">
       <h3>🛠️ Tools</h3>
-      
       <h3>Search & Replace</h3>
-      <label>Search:</label>
-      <input type="text" id="searchBox" placeholder="Search...">
-      <label>Replace:</label>
-      <input type="text" id="replaceBox" placeholder="Replace with...">
-      <label>
-        <input type="checkbox" id="regexMode"> Use Regex
-      </label>
+      <label>Search:</label><input type="text" id="searchBox" placeholder="Search...">
+      <label>Replace:</label><input type="text" id="replaceBox" placeholder="Replace with...">
+      <label><input type="checkbox" id="regexMode"> Use Regex</label>
       <button id="replaceBtn">Replace All</button>
 
       <h3>Settings</h3>
-      <label>
-        <input type="checkbox" id="wordWrap" checked> Word Wrap
-      </label>
-      <label>
-        <input type="checkbox" id="showWhitespace"> Show Whitespace
-      </label>
-      <label>
-        <input type="checkbox" id="showIndentGuides"> Indent Guides
-      </label>
-      
+      <label><input type="checkbox" id="wordWrap" checked> Word Wrap</label>
+
       <label>Language:</label>
       <select id="languageSelector">
+        <option value="python" selected>Python</option>
         <option value="text">Plain Text</option>
         <option value="javascript">JavaScript</option>
-        <option value="python">Python</option>
         <option value="html">HTML</option>
         <option value="css">CSS</option>
         <option value="json">JSON</option>
@@ -542,11 +166,9 @@
 
       <label>Comment Style:</label>
       <select id="commentStyle">
+        <option value="#" selected>#   (Python, Bash)</option>
         <option value="//">//  (JavaScript, C++)</option>
-        <option value="#">#   (Python, Bash)</option>
-        <option value=";">;   (Assembly, INI)</option>
-        <option value="--">--  (SQL, Lua)</option>
-        <option value="'''" selected>''' Block (Python)</option>
+        <option value="'''">''' Block (Python)</option>
       </select>
 
       <h3>Code Tools</h3>
@@ -554,785 +176,676 @@
       <button onclick="unindentSelection()">← Unindent</button>
       <button onclick="trimWhitespace()">✂️ Trim Spaces</button>
       <button onclick="convertTabsToSpaces()">🔄 Tabs→Spaces</button>
-      
+
       <div id="storageStatus">Auto-saving enabled</div>
       <button id="clearAllBtn" onclick="clearAllStorage()">🗑️ Clear All Data</button>
     </div>
   </div>
 
-  <!-- Status Bar -->
   <div id="statusBar">
-    <div class="status-item">
-      <span>Line: <span id="currentLine">1</span></span>
-    </div>
-    <div class="status-item">
-      <span>Col: <span id="currentCol">1</span></span>
-    </div>
-    <div class="status-item">
-      <span>Lines: <span id="totalLines">1</span></span>
-    </div>
-    <div class="status-item">
-      <span>Chars: <span id="charCount">0</span></span>
-    </div>
-    <div class="status-item">
-      <span id="languageStatus">Plain Text</span>
-    </div>
+    <div class="status-item">Line: <span id="currentLine">1</span></div>
+    <div class="status-item">Col: <span id="currentCol">1</span></div>
+    <div class="status-item">Lines: <span id="totalLines">1</span></div>
+    <div class="status-item">Chars: <span id="charCount">0</span></div>
+    <div class="status-item pill">Pane: <span id="paneStatus">1/1</span></div>
   </div>
 
-  <!-- Modals -->
-  <div id="gotoModal" class="modal">
-    <div class="modal-content">
-      <h3>Go to Line</h3>
-      <input type="number" id="gotoLineInput" placeholder="Line number" min="1">
-      <div class="modal-buttons">
-        <button class="btn-secondary" onclick="closeModal('gotoModal')">Cancel</button>
-        <button class="btn-primary" onclick="gotoLine()">Go</button>
-      </div>
+  <!-- Goto & Find -->
+  <div id="gotoModal" class="modal"><div class="modal-content">
+    <h3>Go to Line</h3>
+    <input type="number" id="gotoLineInput" placeholder="Line number" min="1">
+    <div class="row" style="justify-content:flex-end">
+      <button onclick="closeModal('gotoModal')">Cancel</button>
+      <button onclick="gotoLine()" style="background:var(--accent);color:#fff">Go</button>
     </div>
-  </div>
+  </div></div>
 
-  <div id="findModal" class="modal">
-    <div class="modal-content">
-      <h3>Find in Document</h3>
-      <input type="text" id="findInput" placeholder="Search for...">
-      <div class="modal-buttons">
-        <button class="btn-secondary" onclick="closeModal('findModal')">Cancel</button>
-        <button class="btn-primary" onclick="findText()">Find</button>
-      </div>
+  <div id="findModal" class="modal"><div class="modal-content">
+    <h3>Find in Document</h3>
+    <input type="text" id="findInput" placeholder="Search for...">
+    <div class="row" style="justify-content:flex-end">
+      <button onclick="closeModal('findModal')">Cancel</button>
+      <button onclick="findText()" style="background:var(--accent);color:#fff">Find</button>
     </div>
-  </div>
+  </div></div>
 
-  <script>
-    const textarea = document.getElementById('notepad');
-    const lineNumbers = document.getElementById('lineNumbers');
-    const commentStyleSelector = document.getElementById('commentStyle');
-    const tabBar = document.getElementById('tabBar');
-    const storageStatus = document.getElementById('storageStatus');
-    const minimap = document.getElementById('minimap');
-    const currentLineHighlight = document.getElementById('currentLineHighlight');
+  <!-- Diff -->
+  <div id="diffModal" class="modal"><div class="modal-content">
+    <h3>Pane Diff</h3>
+    <div class="row">
+      <label>Left Pane:</label><select id="diffLeft"></select>
+      <label>Right Pane:</label><select id="diffRight"></select>
+      <button onclick="buildDiff()" style="background:var(--accent);color:#fff">Compare</button>
+      <span id="diffSummary" class="pill">No comparison</span>
+      <div style="flex:1"></div>
+      <button onclick="closeModal('diffModal')">Close</button>
+    </div>
+    <div id="diffList"></div>
+  </div></div>
 
-    let tabs = [];
-    let activeTabId = null;
-    let autoSaveTimeout = null;
-    let bookmarks = new Set();
-    let showLineHighlight = false;
-    let showMinimap = false;
-    let currentSearchIndex = 0;
-    let searchResults = [];
+<script>
+/* =========================
+   Config & State
+   ========================= */
+const INDENT = '   '; // 3 spaces
+let tabs=[], activeTabId=null, autoSaveTimeout=null, renamingTabId=null;
+const singleClickTimers = new Map();
 
-    // Local Storage Management
-    function saveToStorage() {
-      try {
-        saveCurrentTabContent();
-        const data = {
-          tabs: tabs,
-          activeTabId: activeTabId,
-          bookmarks: Array.from(bookmarks),
-          timestamp: Date.now()
-        };
-        localStorage.setItem('notepadData', JSON.stringify(data));
-        updateStorageStatus('Saved');
-      } catch (e) {
-        console.error('Failed to save to localStorage:', e);
-        updateStorageStatus('Save failed');
-      }
-    }
+const panesContainer=document.getElementById('panesContainer');
+const tabBar=document.getElementById('tabBar');
+const paneStatus=document.getElementById('paneStatus');
+const storageStatus=document.getElementById('storageStatus');
+const commentStyleSelector=document.getElementById('commentStyle');
 
-    function loadFromStorage() {
-      try {
-        const saved = localStorage.getItem('notepadData');
-        if (saved) {
-          const data = JSON.parse(saved);
-          tabs = data.tabs || [];
-          activeTabId = data.activeTabId;
-          bookmarks = new Set(data.bookmarks || []);
-          
-          if (tabs.length > 0) {
-            renderTabs();
-            if (activeTabId && tabs.find(t => t.id === activeTabId)) {
-              switchTab(activeTabId);
-            } else {
-              switchTab(tabs[0].id);
-            }
-            updateStorageStatus('Loaded');
-            return true;
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load from localStorage:', e);
-        updateStorageStatus('Load failed');
-      }
-      return false;
-    }
+const getActiveTab = ()=>tabs.find(t=>t.id===activeTabId);
+const px=n=>`${n}px`;
+const showModal=id=>document.getElementById(id).style.display='block';
+const closeModal=id=>document.getElementById(id).style.display='none';
 
-    function updateStorageStatus(message) {
-      storageStatus.textContent = message;
-      setTimeout(() => {
-        storageStatus.textContent = 'Auto-saving enabled';
-      }, 2000);
-    }
+/* Robust line-height in px (handles 'normal') */
+function lineHeightPx(el){
+  const cs=getComputedStyle(el);
+  let lh=parseFloat(cs.lineHeight);
+  if(!lh || cs.lineHeight==='normal'){
+    const tmp=document.createElement('div');
+    tmp.style.position='absolute'; tmp.style.visibility='hidden';
+    tmp.style.font=cs.font; tmp.style.whiteSpace='pre';
+    tmp.textContent='A\nA';
+    document.body.appendChild(tmp);
+    lh = tmp.clientHeight/2 || parseFloat(cs.fontSize)*1.5 || 20;
+    tmp.remove();
+  }
+  return lh;
+}
 
-    function scheduleAutoSave() {
-      if (autoSaveTimeout) {
-        clearTimeout(autoSaveTimeout);
-      }
-      autoSaveTimeout = setTimeout(() => {
-        saveToStorage();
-      }, 1000);
-    }
+/* =========================
+   Storage
+   ========================= */
+function scheduleAutoSave(){ clearTimeout(autoSaveTimeout); autoSaveTimeout=setTimeout(saveToStorage,600); }
+function saveToStorage(){
+  try{
+    saveCurrentTabContent();
+    const toStore=JSON.parse(JSON.stringify(tabs,(k,v)=>k==='bookmarks'&&v instanceof Set?[...v]:v));
+    localStorage.setItem('notepadData', JSON.stringify({tabs:toStore,activeTabId}));
+    storageStatus.textContent='Saved'; setTimeout(()=>storageStatus.textContent='Auto-saving enabled',1200);
+  }catch(e){ console.error(e); storageStatus.textContent='Save failed'; }
+}
+function loadFromStorage(){
+  try{
+    const s=localStorage.getItem('notepadData'); if(!s) return false;
+    const data=JSON.parse(s);
+    tabs=(data.tabs||[]).map(t=>({
+      id:t.id,name:t.name||'Untitled',language:t.language||'python',layout:t.layout||'row',
+      panes:(t.panes&&t.panes.length?t.panes:[{content:t.content||''}]).map(p=>({content:p.content||'',bookmarks:new Set(p.bookmarks||[])})),
+      activePane:typeof t.activePane==='number'?t.activePane:0
+    }));
+    activeTabId=data.activeTabId || (tabs[0]&&tabs[0].id);
+    if(tabs.length){ renderTabs(); switchTab(activeTabId); return true; }
+  }catch(e){ console.error(e); }
+  return false;
+}
 
-    function createTab(name = 'Untitled', content = '', language = 'text') {
-      const id = Date.now().toString();
-      tabs.push({ id, name, content, language });
-      renderTabs();
-      switchTab(id);
-      saveToStorage();
-    }
+/* =========================
+   Tabs (dbl-click rename with single-click separation)
+   ========================= */
+function createTab(name='Untitled', content='', language='python'){
+  const id=Date.now().toString();
+  tabs.push({id,name,language,layout:'row',panes:[{content,bookmarks:new Set()}],activePane:0});
+  renderTabs(); switchTab(id); saveToStorage();
+}
 
-    function switchTab(id) {
-      saveCurrentTabContent();
-      activeTabId = id;
-      const tab = tabs.find(t => t.id === id);
-      if (tab) {
-        textarea.value = tab.content;
-        document.getElementById('languageSelector').value = tab.language || 'text';
-        updateLanguageStatus(tab.language || 'text');
-      } else {
-        textarea.value = '';
-      }
-      updateLineNumbers();
-      updateStatusBar();
-      updateMinimap();
-      scheduleAutoSave();
-    }
+function renderTabs(){
+  tabBar.innerHTML='';
+  tabs.forEach(tab=>{
+    const tabEl=document.createElement('div');
+    tabEl.className='tab'+(tab.id===activeTabId?' active':'');
+    const nameSpan=document.createElement('div');
+    nameSpan.className='tab-name';
+    nameSpan.textContent=tab.name;
+    nameSpan.title=tab.name;
 
-    function saveCurrentTabContent() {
-      if (!activeTabId) return;
-      const tab = tabs.find(t => t.id === activeTabId);
-      if (tab) {
-        tab.content = textarea.value;
-        tab.language = document.getElementById('languageSelector').value;
-      }
-    }
-
-    function closeTab(id) {
-      if (confirm('Are you sure you want to permanently delete this tab?')) {
-        const index = tabs.findIndex(t => t.id === id);
-        if (index !== -1) {
-          tabs.splice(index, 1);
-          
-          if (activeTabId === id) {
-            const fallback = tabs[index] || tabs[index - 1];
-            if (fallback) {
-              switchTab(fallback.id);
-            } else {
-              activeTabId = null;
-              textarea.value = '';
-              updateLineNumbers();
-              createTab('Untitled');
-              return;
-            }
-          }
-          renderTabs();
-          saveToStorage();
-        }
-      }
-    }
-
-    function renderTabs() {
-      tabBar.innerHTML = '';
-      tabs.forEach(tab => {
-        const tabEl = document.createElement('div');
-        tabEl.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
-
-        const nameSpan = document.createElement('div');
-        nameSpan.className = 'tab-name';
-        nameSpan.textContent = tab.name;
-        nameSpan.title = tab.name;
-
-        nameSpan.addEventListener('dblclick', (e) => {
-          e.stopPropagation();
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.value = tab.name;
-          input.addEventListener('blur', () => {
-            tab.name = input.value.trim() || tab.name;
-            renderTabs();
-            saveToStorage();
-          });
-          input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              tab.name = input.value.trim() || tab.name;
-              renderTabs();
-              saveToStorage();
-            }
-          });
-          tabEl.replaceChild(input, nameSpan);
-          input.focus();
-          input.select();
-        });
-
-        tabEl.appendChild(nameSpan);
-
-        const closeBtn = document.createElement('div');
-        closeBtn.className = 'close-btn';
-        closeBtn.textContent = '×';
-        closeBtn.title = 'Close tab';
-        closeBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          closeTab(tab.id);
-        });
-        tabEl.appendChild(closeBtn);
-
-        tabEl.addEventListener('click', () => switchTab(tab.id));
-        tabBar.appendChild(tabEl);
-      });
-
-      const addBtn = document.createElement('div');
-      addBtn.id = 'addTab';
-      addBtn.textContent = '+';
-      addBtn.title = 'Add new tab';
-      addBtn.addEventListener('click', () => createTab(`Tab ${tabs.length + 1}`));
-      tabBar.appendChild(addBtn);
-    }
-
-    function updateLineNumbers() {
-      const lines = textarea.value.split('\n');
-      const currentLine = getCurrentLine();
-      
-      lineNumbers.innerHTML = lines.map((line, index) => {
-        const lineNum = index + 1;
-        const isBookmarked = bookmarks.has(lineNum);
-        const isCurrent = lineNum === currentLine;
-        const classes = ['line-number'];
-        if (isBookmarked) classes.push('bookmarked');
-        if (isCurrent) classes.push('current-line');
-        
-        return `<span class="${classes.join(' ')}" data-line="${lineNum}">${lineNum}</span>`;
-      }).join('\n');
-      
-      updateCurrentLineHighlight();
-    }
-
-    function updateStatusBar() {
-      const cursorPos = textarea.selectionStart;
-      const textBeforeCursor = textarea.value.substring(0, cursorPos);
-      const currentLine = textBeforeCursor.split('\n').length;
-      const currentCol = textBeforeCursor.split('\n').pop().length + 1;
-      const totalLines = textarea.value.split('\n').length;
-      const charCount = textarea.value.length;
-
-      document.getElementById('currentLine').textContent = currentLine;
-      document.getElementById('currentCol').textContent = currentCol;
-      document.getElementById('totalLines').textContent = totalLines;
-      document.getElementById('charCount').textContent = charCount;
-    }
-
-    function updateCurrentLineHighlight() {
-      if (!showLineHighlight) return;
-      
-      const currentLine = getCurrentLine();
-      const lineHeight = 19.6; // Approximate line height
-      const top = (currentLine - 1) * lineHeight + 10; // 10px padding
-      
-      currentLineHighlight.style.top = top + 'px';
-      currentLineHighlight.style.display = 'block';
-    }
-
-    function getCurrentLine() {
-      const cursorPos = textarea.selectionStart;
-      const textBeforeCursor = textarea.value.substring(0, cursorPos);
-      return textBeforeCursor.split('\n').length;
-    }
-
-    function updateMinimap() {
-      if (!showMinimap) return;
-      
-      const content = textarea.value;
-      const lines = content.split('\n');
-      const preview = lines.map(line => 
-        line.substring(0, 80) + (line.length > 80 ? '...' : '')
-      ).join('\n');
-      
-      minimap.textContent = preview;
-    }
-
-    function updateLanguageStatus(language) {
-      const languageNames = {
-        'text': 'Plain Text',
-        'javascript': 'JavaScript',
-        'python': 'Python',
-        'html': 'HTML',
-        'css': 'CSS',
-        'json': 'JSON'
-      };
-      document.getElementById('languageStatus').textContent = languageNames[language] || language;
-      
-      // Update comment style based on language
-      const commentStyles = {
-        'javascript': '//',
-        'python': '#',
-        'html': '<!--',
-        'css': '/*',
-        'json': '//'
-      };
-      
-      if (commentStyles[language]) {
-        commentStyleSelector.value = commentStyles[language];
-      }
-    }
-
-    // File operations
-    function downloadFile() {
-      const activeTab = tabs.find(t => t.id === activeTabId);
-      if (!activeTab) return;
-      
-      saveCurrentTabContent();
-      const blob = new Blob([activeTab.content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = activeTab.name + '.txt';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-      Array.from(e.target.files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const content = e.target.result;
-          const extension = file.name.split('.').pop().toLowerCase();
-          const languageMap = {
-            'js': 'javascript',
-            'py': 'python',
-            'html': 'html',
-            'css': 'css',
-            'json': 'json'
-          };
-          const language = languageMap[extension] || 'text';
-          
-          createTab(file.name, content, language);
-        };
-        reader.readAsText(file);
-      });
+    // dblclick to rename (cancel pending single-click switch)
+    tabEl.addEventListener('dblclick',(e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const pending=singleClickTimers.get(tab.id);
+      if(pending){ clearTimeout(pending); singleClickTimers.delete(tab.id); }
+      startRename(tab, tabEl, nameSpan);
     });
 
-    // Modal functions
-    function showModal(modalId) {
-      document.getElementById(modalId).style.display = 'block';
-    }
-
-    function closeModal(modalId) {
-      document.getElementById(modalId).style.display = 'none';
-    }
-
-    function showGotoModal() {
-      showModal('gotoModal');
-      document.getElementById('gotoLineInput').focus();
-    }
-
-    function showFindModal() {
-      showModal('findModal');
-      document.getElementById('findInput').focus();
-    }
-
-    function gotoLine() {
-      const lineNum = parseInt(document.getElementById('gotoLineInput').value);
-      if (lineNum && lineNum > 0) {
-        const lines = textarea.value.split('\n');
-        if (lineNum <= lines.length) {
-          const position = lines.slice(0, lineNum - 1).join('\n').length + (lineNum > 1 ? 1 : 0);
-          textarea.selectionStart = textarea.selectionEnd = position;
-          textarea.focus();
-          updateStatusBar();
-        }
-      }
-      closeModal('gotoModal');
-    }
-
-    function findText() {
-      const searchTerm = document.getElementById('findInput').value;
-      if (!searchTerm) return;
-      
-      const content = textarea.value.toLowerCase();
-      const term = searchTerm.toLowerCase();
-      const index = content.indexOf(term, textarea.selectionStart);
-      
-      if (index !== -1) {
-        textarea.selectionStart = index;
-        textarea.selectionEnd = index + searchTerm.length;
-        textarea.focus();
-      } else {
-        alert('Text not found');
-      }
-      closeModal('findModal');
-    }
-
-    // Tool functions
-    function changeFontSize(size) {
-      textarea.style.fontSize = size + 'px';
-      lineNumbers.style.fontSize = size + 'px';
-    }
-
-    function changeTheme(theme) {
-      if (theme === 'light') {
-        document.body.classList.add('light-theme');
-      } else {
-        document.body.classList.remove('light-theme');
-      }
-    }
-
-    function toggleMinimap() {
-      showMinimap = !showMinimap;
-      if (showMinimap) {
-        minimap.classList.add('show');
-        updateMinimap();
-      } else {
-        minimap.classList.remove('show');
-      }
-    }
-
-    function toggleLineHighlight() {
-      showLineHighlight = !showLineHighlight;
-      if (showLineHighlight) {
-        updateCurrentLineHighlight();
-      } else {
-        currentLineHighlight.style.display = 'none';
-      }
-    }
-
-    function toggleBookmark() {
-      const currentLine = getCurrentLine();
-      if (bookmarks.has(currentLine)) {
-        bookmarks.delete(currentLine);
-      } else {
-        bookmarks.add(currentLine);
-      }
-      updateLineNumbers();
-      saveToStorage();
-    }
-
-    function duplicateLine() {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const value = textarea.value;
-      
-      // Find the current line
-      const beforeCursor = value.substring(0, start);
-      const afterCursor = value.substring(end);
-      const lines = beforeCursor.split('\n');
-      const currentLineStart = beforeCursor.length - lines[lines.length - 1].length;
-      const currentLineEnd = value.indexOf('\n', end);
-      const lineEnd = currentLineEnd === -1 ? value.length : currentLineEnd;
-      
-      const currentLine = value.substring(currentLineStart, lineEnd);
-      const newContent = value.substring(0, lineEnd) + '\n' + currentLine + value.substring(lineEnd);
-      
-      textarea.value = newContent;
-      textarea.selectionStart = textarea.selectionEnd = lineEnd + currentLine.length + 1;
-      updateLineNumbers();
-      updateStatusBar();
-      scheduleAutoSave();
-    }
-
-    function indentSelection() {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const value = textarea.value;
-      const selected = value.slice(start, end);
-      
-      if (selected.includes('\n')) {
-        // Multi-line selection
-        const lines = selected.split('\n');
-        const indentedLines = lines.map(line => '    ' + line);
-        const newContent = value.slice(0, start) + indentedLines.join('\n') + value.slice(end);
-        textarea.value = newContent;
-        textarea.selectionStart = start;
-        textarea.selectionEnd = end + (lines.length * 4);
-      } else {
-        // Single line or no selection
-        textarea.value = value.slice(0, start) + '    ' + value.slice(start);
-        textarea.selectionStart = textarea.selectionEnd = start + 4;
-      }
-      
-      updateLineNumbers();
-      scheduleAutoSave();
-    }
-
-    function unindentSelection() {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const value = textarea.value;
-      const selected = value.slice(start, end);
-      
-      if (selected.includes('\n')) {
-        // Multi-line selection
-        const lines = selected.split('\n');
-        const unindentedLines = lines.map(line => line.replace(/^    /, ''));
-        const newContent = value.slice(0, start) + unindentedLines.join('\n') + value.slice(end);
-        textarea.value = newContent;
-        textarea.selectionStart = start;
-        textarea.selectionEnd = end - (lines.length * 4);
-      } else {
-        // Single line
-        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-        const lineEnd = value.indexOf('\n', start);
-        const line = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
-        
-        if (line.startsWith('    ')) {
-          const newLine = line.substring(4);
-          const before = value.slice(0, lineStart);
-          const after = value.slice(lineEnd === -1 ? value.length : lineEnd);
-          textarea.value = before + newLine + after;
-          textarea.selectionStart = textarea.selectionEnd = start - 4;
-        }
-      }
-      
-      updateLineNumbers();
-      scheduleAutoSave();
-    }
-
-    function trimWhitespace() {
-      const lines = textarea.value.split('\n');
-      const trimmedLines = lines.map(line => line.trimEnd());
-      textarea.value = trimmedLines.join('\n');
-      updateLineNumbers();
-      scheduleAutoSave();
-    }
-
-    function convertTabsToSpaces() {
-      textarea.value = textarea.value.replace(/\t/g, '    ');
-      updateLineNumbers();
-      scheduleAutoSave();
-    }
-
-    function clearAllStorage() {
-      if (confirm('Are you sure you want to clear all saved data? This cannot be undone.')) {
-        localStorage.removeItem('notepadData');
-        tabs = [];
-        activeTabId = null;
-        bookmarks = new Set();
-        textarea.value = '';
-        renderTabs();
-        createTab('Untitled');
-        updateStorageStatus('Cleared');
-      }
-    }
-
-    // Event listeners
-    textarea.addEventListener('keydown', function (e) {
-      const start = this.selectionStart;
-      const end = this.selectionEnd;
-      const value = this.value;
-
-      // Tab handling
-      if (e.key === 'Tab' && !e.shiftKey) {
-        e.preventDefault();
-        if (start !== end) {
-          indentSelection();
-        } else {
-          const indent = '    ';
-          this.value = value.slice(0, start) + indent + value.slice(end);
-          this.selectionStart = this.selectionEnd = start + indent.length;
-        }
-        return;
-      }
-
-      // Shift+Tab for unindent
-      if (e.key === 'Tab' && e.shiftKey) {
-        e.preventDefault();
-        unindentSelection();
-        return;
-      }
-
-      // Enter key with auto-indentation
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const before = value.slice(0, start);
-        const after = value.slice(end);
-        const lines = before.split('\n');
-        const lastLine = lines[lines.length - 1];
-        const indent = lastLine.match(/^\s*/)?.[0] || '';
-        const addIndent = lastLine.trim().endsWith(':') || lastLine.trim().endsWith('{') ? indent + '    ' : indent;
-        this.value = before + '\n' + addIndent + after;
-        this.selectionStart = this.selectionEnd = start + 1 + addIndent.length;
-        updateLineNumbers();
-        updateStatusBar();
-        return;
-      }
-
-      // Smart backspace
-      if (e.key === 'Backspace' && start === end) {
-        const before = value.slice(0, start);
-        const last4 = before.slice(-4);
-        if (last4 === '    ') {
-          e.preventDefault();
-          this.value = before.slice(0, -4) + value.slice(end);
-          this.selectionStart = this.selectionEnd = start - 4;
-          updateLineNumbers();
-          updateStatusBar();
-          return;
-        }
-      }
-
-      // Keyboard shortcuts
-      if (e.ctrlKey || e.metaKey) {
-        switch(e.key) {
-          case '/':
-            e.preventDefault();
-            toggleComment();
-            break;
-          case 'd':
-            e.preventDefault();
-            duplicateLine();
-            break;
-          case 'g':
-            e.preventDefault();
-            showGotoModal();
-            break;
-          case 'f':
-            e.preventDefault();
-            showFindModal();
-            break;
-        }
-      }
+    // single click switch, only when truly a single click
+    tabEl.addEventListener('click',(e)=>{
+      if(renamingTabId) return;
+      if(e.detail !== 1) return;
+      const tId=setTimeout(()=>{ switchTab(tab.id); singleClickTimers.delete(tab.id); }, 260);
+      singleClickTimers.set(tab.id, tId);
     });
 
-    function toggleComment() {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const value = textarea.value;
-      const selected = value.slice(start, end);
-      const before = value.slice(0, start);
-      const after = value.slice(end);
-      const style = commentStyleSelector.value;
+    const closeBtn=document.createElement('div');
+    closeBtn.className='close-btn'; closeBtn.textContent='×'; closeBtn.title='Close tab';
+    closeBtn.addEventListener('click',(e)=>{ e.stopPropagation(); const pending=singleClickTimers.get(tab.id); if(pending){clearTimeout(pending); singleClickTimers.delete(tab.id);} closeTab(tab.id); });
 
-      if (style === "'''") {
-        const trimmed = selected.trim();
-        if (trimmed.startsWith("'''") && trimmed.endsWith("'''")) {
-          textarea.value = before + trimmed.slice(3, -3) + after;
-        } else {
-          textarea.value = before + "'''\n" + selected + "\n'''" + after;
-        }
-      } else {
-        const lines = selected.split('\n');
-        const allCommented = lines.every(line => line.trim().startsWith(style) || line.trim() === '');
-        const newLines = lines.map(line => {
-          if (line.trim() === '') return line;
-          if (allCommented) {
-            return line.replace(new RegExp(`^(\\s*)${style.replace(/[.*+?^${}()|[\]\\]/g, '\\          textarea.selectionStart = textarea.selectionEnd = position;')}\\s?`), '$1');
-          } else {
-            return line.replace(/^(\s*)/, `$1${style} `);
-          }
-        });
-        textarea.value = before + newLines.join('\n') + after;
-      }
+    tabEl.appendChild(nameSpan);
+    tabEl.appendChild(closeBtn);
+    tabBar.appendChild(tabEl);
+  });
 
-      updateLineNumbers();
-      scheduleAutoSave();
+  const addBtn=document.createElement('div');
+  addBtn.id='addTab'; addBtn.textContent='+'; addBtn.title='Add new tab';
+  addBtn.addEventListener('click',()=>createTab(`Tab ${tabs.length+1}`));
+  tabBar.appendChild(addBtn);
+}
+
+function startRename(tab, tabEl, nameSpan){
+  if(renamingTabId) return;
+  renamingTabId=tab.id;
+  const input=document.createElement('input');
+  input.type='text'; input.value=tab.name; input.className='tab-rename';
+  input.style.border='1px solid var(--accent)'; input.style.borderRadius='4px';
+  input.style.background='var(--bg-primary)'; input.style.color='var(--text-primary)';
+  input.style.font='inherit'; input.style.minWidth='120px';
+
+  const commit=()=>{ tab.name=input.value.trim()||tab.name; renamingTabId=null; renderTabs(); saveToStorage(); };
+  const cancel=()=>{ renamingTabId=null; renderTabs(); };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter') commit(); if(ev.key==='Escape') cancel(); });
+
+  tabEl.replaceChild(input, nameSpan);
+  input.focus(); input.select();
+}
+
+function closeTab(id){
+  if(!confirm('Delete this tab?')) return;
+  const i=tabs.findIndex(t=>t.id===id); tabs.splice(i,1);
+  if(activeTabId===id){
+    const f=tabs[i]||tabs[i-1];
+    f?switchTab(f.id):(activeTabId=null, panesContainer.innerHTML='', renderTabs(), createTab('Untitled'));
+  }else{ renderTabs(); saveToStorage(); }
+}
+
+function switchTab(id){
+  saveCurrentTabContent();
+  activeTabId=id; const t=getActiveTab(); if(!t) return;
+  if(!t.panes.length) t.panes=[{content:'',bookmarks:new Set()}];
+  renderPanesForTab(t);
+  renderTabs();
+  const ta=getActiveTextarea(); if(ta) ta.focus();
+  updateAllUI(); scheduleAutoSave();
+}
+
+/* =========================
+   Panes & layout
+   ========================= */
+function getActiveTextarea(){
+  const t=getActiveTab(); if(!t) return null;
+  const idx=t.activePane ?? 0;
+  return panesContainer.querySelectorAll('.pane textarea')[idx] || panesContainer.querySelector('.pane textarea');
+}
+function getPaneNodes(idx){
+  const pane=panesContainer.querySelectorAll('.pane')[idx];
+  if(!pane) return {};
+  return {pane, gutter:pane.querySelector('.gutter'), ta:pane.querySelector('textarea'), hl:pane.querySelector('.current-line-highlight')};
+}
+function renderPanesForTab(tab){
+  panesContainer.innerHTML=''; panesContainer.style.flexDirection=tab.layout||'row';
+  tab.panes.forEach((p,idx)=>{
+    const pane=document.createElement('div'); pane.className='pane';
+    const gutter=document.createElement('div'); gutter.className='gutter'; pane.appendChild(gutter);
+    const hl=document.createElement('div'); hl.className='current-line-highlight'; pane.appendChild(hl);
+    const ta=document.createElement('textarea'); ta.value=p.content||'';
+
+    // mirror font-size & lock line-height (px) for both TA and gutter
+    const fs=(document.getElementById('fontSizeSlider').value||14)+'px';
+    ta.style.fontSize=fs; gutter.style.fontSize=fs;
+    const wrap=document.getElementById('wordWrap').checked; ta.style.whiteSpace=wrap?'pre-wrap':'pre'; ta.style.wordWrap=wrap?'break-word':'normal';
+    const lh=lineHeightPx(ta); ta.style.lineHeight=lh+'px'; gutter.style.lineHeight=lh+'px'; hl.style.height=px(lh);
+
+    // keep scroll in sync both ways
+    ta.addEventListener('scroll', ()=>{ gutter.scrollTop=ta.scrollTop; positionHL(idx); });
+    gutter.addEventListener('wheel', (e)=>{ e.preventDefault(); ta.scrollTop += e.deltaY; }, {passive:false});
+
+    ta.addEventListener('input', ()=>{ tab.panes[idx].content=ta.value; updatePane(idx); if(tab.activePane===idx) updateStatusBar(); scheduleAutoSave(); });
+    ta.addEventListener('focus', ()=>{ tab.activePane=idx; updateAllUI(); });
+    ta.addEventListener('click', ()=>{ if(tab.activePane!==idx) tab.activePane=idx; updateAllUI(); });
+    ta.addEventListener('keyup', updateAllUI);
+
+    pane.appendChild(ta); panesContainer.appendChild(pane);
+    if(idx<tab.panes.length-1){ const rz=document.createElement('div'); rz.className='resizer'; panesContainer.appendChild(rz); initResizer(rz); }
+  });
+  if(typeof tab.activePane!=='number'||tab.activePane>=tab.panes.length) tab.activePane=0;
+  const ta=getActiveTextarea(); if(ta) ta.focus();
+  setLayout(tab.layout||'row');
+  tab.panes.forEach((_,i)=>updatePane(i));
+}
+
+function initResizer(rz){
+  let sx=0,sy=0,prevSize=0,nextSize=0,prevPane,nextPane;
+  function down(e){
+    e.preventDefault(); const t=getActiveTab(); if(!t) return;
+    sx=e.clientX; sy=e.clientY;
+    prevPane=rz.previousElementSibling; nextPane=rz.nextElementSibling;
+    if(!(prevPane&&nextPane&&prevPane.classList.contains('pane')&&nextPane.classList.contains('pane'))) return;
+    const pr=prevPane.getBoundingClientRect(), nr=nextPane.getBoundingClientRect();
+    prevSize=(t.layout==='column')?pr.height:pr.width; nextSize=(t.layout==='column')?nr.height:nr.width;
+    addEventListener('mousemove',move); addEventListener('mouseup',up);
+  }
+  function move(e){
+    const t=getActiveTab(); if(!t||!prevPane||!nextPane) return;
+    const dx=e.clientX-sx, dy=e.clientY-sy, total=prevSize+nextSize;
+    if(t.layout==='column'){ const np=Math.max(80,prevSize+dy), nn=Math.max(80,total-np); prevPane.style.flex='0 0 '+px(np); nextPane.style.flex='0 0 '+px(nn); }
+    else { const np=Math.max(220,prevSize+dx), nn=Math.max(220,total-np); prevPane.style.flex='0 0 '+px(np); nextPane.style.flex='0 0 '+px(nn); }
+  }
+  function up(){ removeEventListener('mousemove',move); removeEventListener('mouseup',up); }
+  rz.addEventListener('mousedown',down);
+}
+function setLayout(mode){
+  const t=getActiveTab(); if(!t) return;
+  t.layout=(mode==='column')?'column':'row';
+  panesContainer.style.flexDirection=t.layout;
+  panesContainer.querySelectorAll('.resizer').forEach(rz=>{
+    const v=t.layout==='column'; rz.classList.toggle('vertical',v); rz.style.width=v?'100%':'6px'; rz.style.height=v?'6px':'auto'; rz.style.cursor=v?'row-resize':'col-resize';
+  });
+  saveToStorage();
+}
+
+/* panes add/remove/equalize */
+function addPartition(){
+  const t=getActiveTab(); if(!t) return;
+  t.panes.push({content:'',bookmarks:new Set()});
+  t.activePane=t.panes.length-1;
+  renderPanesForTab(t);
+  equalizePartitions(); saveToStorage();
+}
+function removeLastPartition(){
+  const t=getActiveTab(); if(!t) return;
+  if(t.panes.length<=1) return;
+  t.panes.pop();
+  if(t.activePane>=t.panes.length) t.activePane=t.panes.length-1;
+  renderPanesForTab(t); saveToStorage();
+}
+function equalizePartitions(){ panesContainer.querySelectorAll('.pane').forEach(p=>{ p.style.flexBasis='0'; p.style.flexGrow='1';}); }
+
+/* =========================
+   Gutter + highlight + status
+   ========================= */
+function syncPaneMetrics(idx){
+  const {gutter, ta, hl} = getPaneNodes(idx);
+  if(!gutter || !ta || !hl) return;
+
+  const fs = getComputedStyle(ta).fontSize;
+  gutter.style.fontSize = fs;
+
+  const lh = lineHeightPx(ta);
+  ta.style.lineHeight = lh + 'px';
+  gutter.style.lineHeight = lh + 'px';
+  hl.style.height = lh + 'px';
+
+  const cs = getComputedStyle(ta);
+  gutter.style.paddingTop = cs.paddingTop;
+  gutter.style.paddingBottom = cs.paddingBottom;
+
+  gutter.scrollTop = ta.scrollTop;
+}
+
+function updatePane(idx){
+  const t=getActiveTab(); const {ta,gutter}=getPaneNodes(idx); if(!ta||!gutter) return;
+
+  syncPaneMetrics(idx);
+
+  const lines=ta.value.split('\n');
+  const caretLine = ta.value.substring(0,ta.selectionStart).split('\n').length;
+
+  let html='';
+  const lh=parseFloat(getComputedStyle(ta).lineHeight);
+  for(let n=1;n<=lines.length;n++){
+    const cls = n===caretLine ? 'line-number current-line' : 'line-number';
+    html += `<span class="${cls}" style="display:block;height:${lh}px;line-height:${lh}px" data-line="${n}">${n}</span>`;
+  }
+  gutter.innerHTML=html;
+  gutter.scrollTop = ta.scrollTop;
+  positionHL(idx);
+}
+function positionHL(idx){
+  const {ta,hl}=getPaneNodes(idx); if(!ta||!hl) return;
+  const lh=lineHeightPx(ta);
+  const current=ta.value.substring(0,ta.selectionStart).split('\n').length-1;
+  const pt=parseFloat(getComputedStyle(ta).paddingTop)||0;
+  const top=pt + current*lh - ta.scrollTop;
+  hl.style.top=px(top); hl.style.display='block';
+}
+function updateStatusBar(){
+  const ta=getActiveTextarea(); const t=getActiveTab(); if(!ta||!t) return;
+  const pos=ta.selectionStart, textBefore=ta.value.substring(0,pos);
+  document.getElementById('currentLine').textContent=textBefore.split('\n').length;
+  document.getElementById('currentCol').textContent=textBefore.split('\n').pop().length+1;
+  document.getElementById('totalLines').textContent=ta.value.split('\n').length;
+  document.getElementById('charCount').textContent=ta.value.length;
+  paneStatus.textContent=`${(t.activePane??0)+1}/${t.panes.length}`;
+}
+function updateAllUI(){ const t=getActiveTab(); if(t) updatePane(t.activePane); updateStatusBar(); }
+
+/* =========================
+   File / Find / Goto / Replace
+   ========================= */
+function downloadFile(){
+  const t=getActiveTab(); if(!t) return; saveCurrentTabContent();
+  const i=t.activePane??0; const content=(t.panes[i]&&t.panes[i].content)||'';
+  const blob=new Blob([content],{type:'text/plain'}), url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`${t.name}-pane${i+1}.txt`; a.click(); URL.revokeObjectURL(url);
+}
+document.getElementById('fileInput').addEventListener('change',e=>{
+  Array.from(e.target.files).forEach(file=>{
+    const r=new FileReader();
+    r.onload=ev=>createTab(file.name, ev.target.result, 'python');
+    r.readAsText(file);
+  });
+});
+function showGotoModal(){ showModal('gotoModal'); document.getElementById('gotoLineInput').focus(); }
+function gotoLine(){
+  const ta=getActiveTextarea(); const n=parseInt(document.getElementById('gotoLineInput').value); if(!ta||!(n>0)) return closeModal('gotoModal');
+  const lines=ta.value.split('\n'); if(n<=lines.length){ const pos=lines.slice(0,n-1).join('\n').length+(n>1?1:0); ta.selectionStart=ta.selectionEnd=pos; ta.focus(); updateAllUI(); }
+  closeModal('gotoModal');
+}
+function showFindModal(){ showModal('findModal'); document.getElementById('findInput').focus(); }
+function findText(){
+  const ta=getActiveTextarea(); const s=document.getElementById('findInput').value; if(!ta||!s) return closeModal('findModal');
+  const c=ta.value.toLowerCase(), term=s.toLowerCase(), i=c.indexOf(term, ta.selectionStart);
+  if(i!==-1){ ta.selectionStart=i; ta.selectionEnd=i+s.length; ta.focus(); }
+  closeModal('findModal');
+}
+document.getElementById('replaceBtn').addEventListener('click',()=>{
+  const ta=getActiveTextarea(); if(!ta) return;
+  const search=document.getElementById('searchBox').value;
+  const replace=document.getElementById('replaceBox').value;
+  const useRegex=document.getElementById('regexMode').checked;
+  if(!search) return;
+  try{
+    const re = useRegex ? new RegExp(search,'g') : new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');
+    ta.value = ta.value.replace(re, replace);
+    updateAllUI(); scheduleAutoSave();
+  }catch(e){ alert('Invalid regex'); }
+});
+
+/* =========================
+   Editing / Indent & Comment (3-space Python-friendly)
+   ========================= */
+document.addEventListener('keydown', e=>{
+  const ta=getActiveTextarea(); if(!ta) return;
+
+  // Ctrl+/ → toggle comment
+  if((e.ctrlKey||e.metaKey) && e.key==='/'){ e.preventDefault(); toggleComment(); return; }
+
+  // Tab / Shift+Tab
+  if(e.key==='Tab' && !e.shiftKey){
+    e.preventDefault();
+    const s=ta.selectionStart, ePos=ta.selectionEnd, v=ta.value;
+    if(s!==ePos){ indentSelection(); }
+    else { ta.value=v.slice(0,s)+INDENT+v.slice(ePos); ta.selectionStart=ta.selectionEnd=s+INDENT.length; }
+    updateAllUI(); scheduleAutoSave(); return;
+  }
+  if(e.key==='Tab' && e.shiftKey){
+    e.preventDefault(); unindentSelection(); updateAllUI(); scheduleAutoSave(); return;
+  }
+
+  // Enter with auto-indent (+3 after ':')
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const sPos=ta.selectionStart, ePos=ta.selectionEnd, v=ta.value;
+    const before=v.slice(0,sPos), after=v.slice(ePos);
+    const lastLine=before.split('\n').pop();
+    const baseIndent=(lastLine.match(/^\s*/)||[''])[0];
+    const extra = lastLine.trimEnd().endsWith(':') ? INDENT : '';
+    ta.value = before + '\n' + baseIndent + extra + after;
+    ta.selectionStart = ta.selectionEnd = sPos + 1 + baseIndent.length + extra.length;
+    updateAllUI(); scheduleAutoSave(); return;
+  }
+
+  // Smart backspace: eat one INDENT at boundary
+  if(e.key==='Backspace' && ta.selectionStart===ta.selectionEnd){
+    const sPos=ta.selectionStart, v=ta.value;
+    const lineStart = v.lastIndexOf('\n', sPos-1) + 1;
+    const toCursor = v.slice(lineStart, sPos);
+    if(toCursor.endsWith(INDENT)){
+      e.preventDefault();
+      ta.value = v.slice(0, sPos-INDENT.length) + v.slice(sPos);
+      ta.selectionStart = ta.selectionEnd = sPos - INDENT.length;
+      updateAllUI(); scheduleAutoSave(); return;
     }
+  }
+});
 
-    textarea.addEventListener('input', function() {
-      updateLineNumbers();
-      updateStatusBar();
-      updateMinimap();
-      scheduleAutoSave();
-    });
-    
-    textarea.addEventListener('scroll', () => {
-      lineNumbers.scrollTop = textarea.scrollTop;
-      updateCurrentLineHighlight();
-    });
-
-    textarea.addEventListener('selectionchange', updateStatusBar);
-    textarea.addEventListener('click', updateStatusBar);
-    textarea.addEventListener('keyup', updateStatusBar);
-
-    // Line number click for bookmarks
-    lineNumbers.addEventListener('click', function(e) {
-      const lineSpan = e.target.closest('.line-number');
-      if (lineSpan) {
-        const lineNum = parseInt(lineSpan.dataset.line);
-        if (bookmarks.has(lineNum)) {
-          bookmarks.delete(lineNum);
-        } else {
-          bookmarks.add(lineNum);
-        }
-        updateLineNumbers();
-        saveToStorage();
-      }
-    });
-
-    // Settings event listeners
-    document.getElementById('wordWrap').addEventListener('change', (e) => {
-      textarea.style.whiteSpace = e.target.checked ? 'pre-wrap' : 'pre';
-      textarea.style.wordWrap = e.target.checked ? 'break-word' : 'normal';
-    });
-
-    document.getElementById('showWhitespace').addEventListener('change', (e) => {
-      // This would require more complex implementation
-      console.log('Show whitespace:', e.target.checked);
-    });
-
-    document.getElementById('showIndentGuides').addEventListener('change', (e) => {
-      // This would require more complex implementation
-      console.log('Show indent guides:', e.target.checked);
-    });
-
-    document.getElementById('languageSelector').addEventListener('change', (e) => {
-      updateLanguageStatus(e.target.value);
-      const activeTab = tabs.find(t => t.id === activeTabId);
-      if (activeTab) {
-        activeTab.language = e.target.value;
-        saveToStorage();
-      }
-    });
-
-    document.getElementById('replaceBtn').addEventListener('click', () => {
-      const search = document.getElementById('searchBox').value;
-      const replace = document.getElementById('replaceBox').value;
-      const useRegex = document.getElementById('regexMode').checked;
-      
-      if (!search) return;
-      
-      try {
-        const regex = useRegex ? new RegExp(search, 'g') : new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\          textarea.selectionStart = textarea.selectionEnd = position;'), 'g');
-        textarea.value = textarea.value.replace(regex, replace);
-        updateLineNumbers();
-        updateStatusBar();
-        scheduleAutoSave();
-      } catch (e) {
-        alert('Invalid regex pattern');
-      }
-    });
-
-    // Modal close on click outside
-    window.addEventListener('click', function(e) {
-      if (e.target.classList.contains('modal')) {
-        e.target.style.display = 'none';
-      }
-    });
-
-    // Auto-save before page unload
-    window.addEventListener('beforeunload', function(e) {
-      saveToStorage();
-    });
-
-    // Auto-save periodically
-    setInterval(() => {
-      saveToStorage();
-    }, 30000);
-
-    // Initialize
-    function init() {
-      if (!loadFromStorage()) {
-        createTab('Untitled');
-      }
-      updateStatusBar();
+function indentSelection(){
+  const ta=getActiveTextarea(); if(!ta) return;
+  const s=ta.selectionStart,e=ta.selectionEnd,v=ta.value,sel=v.slice(s,e);
+  if(sel.includes('\n')){
+    const lines=sel.split('\n');
+    const out=lines.map(l=>INDENT+l).join('\n');
+    ta.value=v.slice(0,s)+out+v.slice(e);
+    ta.selectionStart=s; ta.selectionEnd=e + lines.length*INDENT.length;
+  }else{
+    ta.value=v.slice(0,s)+INDENT+v.slice(s);
+    ta.selectionStart=ta.selectionEnd=s+INDENT.length;
+  }
+}
+function unindentSelection(){
+  const ta=getActiveTextarea(); if(!ta) return;
+  const s=ta.selectionStart,e=ta.selectionEnd,v=ta.value,sel=v.slice(s,e);
+  const rm = (line)=> line.startsWith(INDENT) ? line.slice(INDENT.length) : line.replace(/^ {1,2}$/, '');
+  if(sel.includes('\n')){
+    const lines=sel.split('\n');
+    const out=lines.map(rm).join('\n');
+    ta.value=v.slice(0,s)+out+v.slice(e);
+    ta.selectionStart=s; ta.selectionEnd=s+out.length;
+  }else{
+    const ls=v.lastIndexOf('\n',s-1)+1, le=v.indexOf('\n',s); const line=v.slice(ls, le===-1?v.length:le);
+    if(line.startsWith(INDENT)){
+      ta.value=v.slice(0,ls)+line.slice(INDENT.length)+v.slice(le===-1?v.length:le);
+      ta.selectionStart=ta.selectionEnd=s-INDENT.length;
     }
+  }
+}
+function duplicateLine(){
+  const ta=getActiveTextarea(); if(!ta) return;
+  const s=ta.selectionStart, e=ta.selectionEnd, v=ta.value;
+  const lineStart=v.lastIndexOf('\n', s-1)+1;
+  const lineEnd=v.indexOf('\n', e); const end = lineEnd===-1? v.length : lineEnd;
+  const line=v.slice(lineStart, end);
+  ta.value = v.slice(0,end) + '\n' + line + v.slice(end);
+  ta.selectionStart = ta.selectionEnd = end + 1 + line.length;
+  updateAllUI(); scheduleAutoSave();
+}
 
-    init();
-  </script>
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function toggleComment(){
+  const ta=getActiveTextarea(); if(!ta) return;
+  const style = commentStyleSelector.value; // '#', '//' or "'''"
+  const s=ta.selectionStart, e=ta.selectionEnd, v=ta.value;
+  const selected=v.slice(s,e);
+  const before=v.slice(0,s), after=v.slice(e);
+
+  if(style==="'''"){
+    const trimmed=selected.trim();
+    if(trimmed.startsWith("'''") && trimmed.endsWith("'''")){
+      const inner=trimmed.slice(3,-3);
+      ta.value = before + inner + after;
+      ta.selectionStart = s; ta.selectionEnd = s + inner.length;
+    }else{
+      const block="'''\n"+selected+"\n'''";
+      ta.value = before + block + after;
+      ta.selectionStart = s + 4; ta.selectionEnd = s + 4 + selected.length;
+    }
+    updateAllUI(); scheduleAutoSave(); return;
+  }
+
+  // line-style comments
+  const commentToken = style;
+  if(selected.includes('\n')){
+    const lines=selected.split('\n');
+    const allCommented = lines.every(l=>l.trim()==='' || l.trim().startsWith(commentToken));
+    const out = lines.map(l=>{
+      if(l.trim()==='') return l;
+      if(allCommented){
+        const re = new RegExp('^(\\s*)'+escapeRegex(commentToken)+'\\s?');
+        return l.replace(re,'$1');
+      }else{
+        return l.replace(/^(\s*)/, `$1${commentToken} `);
+      }
+    }).join('\n');
+    ta.value = before + out + after;
+    ta.selectionStart=s; ta.selectionEnd=s+out.length;
+  }else{
+    const ls=v.lastIndexOf('\n',s-1)+1, le=v.indexOf('\n',s); const end = le===-1? v.length : le;
+    const line=v.slice(ls,end);
+    const trimmed=line.trim();
+    const re = new RegExp('^(\\s*)'+escapeRegex(commentToken)+'\\s?');
+    let newLine;
+    if(trimmed.startsWith(commentToken)){ newLine=line.replace(re,'$1'); }
+    else{ newLine=line.replace(/^(\s*)/, `$1${commentToken} `); }
+    ta.value = v.slice(0,ls)+newLine+v.slice(end);
+    const delta = newLine.length - line.length;
+    ta.selectionStart = ta.selectionEnd = s + delta;
+  }
+  updateAllUI(); scheduleAutoSave();
+}
+
+/* =========================
+   Persist current tab panes
+   ========================= */
+function saveCurrentTabContent(){
+  const t=getActiveTab(); if(!t) return;
+  const panes=panesContainer.querySelectorAll('.pane');
+  t.panes=Array.from(panes).map((p,i)=>({content:p.querySelector('textarea').value,bookmarks:t.panes[i]?t.panes[i].bookmarks:new Set()}));
+}
+
+/* =========================
+   Diff (per-line arrows)
+   ========================= */
+function openDiff(){
+  const t=getActiveTab(); if(!t) return;
+  const L=document.getElementById('diffLeft'), R=document.getElementById('diffRight');
+  L.innerHTML=''; R.innerHTML='';
+  t.panes.forEach((_,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`Pane ${i+1}`; L.appendChild(o.cloneNode(true)); R.appendChild(o); });
+  L.value=t.activePane; R.value=Math.min(t.activePane+1, t.panes.length-1);
+  document.getElementById('diffList').innerHTML=''; document.getElementById('diffSummary').textContent='No comparison';
+  document.getElementById('diffModal').style.display='block';
+}
+function buildDiff(){
+  const t=getActiveTab(); if(!t) return;
+  const L=parseInt(document.getElementById('diffLeft').value), R=parseInt(document.getElementById('diffRight').value);
+  if(L===R){ document.getElementById('diffSummary').textContent='Choose two different panes'; return; }
+  const left=t.panes[L].content.split('\n'), right=t.panes[R].content.split('\n');
+  const max=Math.max(left.length,right.length);
+  const list=document.getElementById('diffList'); list.innerHTML='';
+
+  const grid=document.createElement('div'); grid.className='diff-grid';
+  const leftCol=document.createElement('div'); leftCol.className='diff-col';
+  const mid=document.createElement('div'); mid.className='diff-mid';
+  const rightCol=document.createElement('div'); rightCol.className='diff-col';
+
+  let changed=0;
+  for(let i=0;i<max;i++){
+    const l=left[i]??'', r=right[i]??'';
+    const same = l===r;
+    const Lline=document.createElement('div'); Lline.className='line'+(same?'':' changed');
+    const Rline=document.createElement('div'); Rline.className='line'+(same?'':' changed');
+    if(same){ Lline.textContent=l; Rline.textContent=r; mid.appendChild(document.createElement('div')); }
+    else{
+      changed++;
+      const td=tokenDiff(l,r);
+      Lline.innerHTML=td.leftHTML; Rline.innerHTML=td.rightHTML;
+      const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.flexDirection='column'; ctl.style.gap='6px'; ctl.style.alignItems='center';
+      const toLeft=document.createElement('button'); toLeft.textContent='←'; toLeft.title='Copy right line to left';
+      toLeft.onclick=()=>{ left.splice(i, l?1:0, r); t.panes[L].content=left.join('\n'); refreshPane(L); buildDiff(); };
+      const toRight=document.createElement('button'); toRight.textContent='→'; toRight.title='Copy left line to right';
+      toRight.onclick=()=>{ right.splice(i, r?1:0, l); t.panes[R].content=right.join('\n'); refreshPane(R); buildDiff(); };
+      ctl.appendChild(toLeft); ctl.appendChild(toRight);
+      mid.appendChild(ctl);
+    }
+    leftCol.appendChild(Lline); rightCol.appendChild(Rline);
+  }
+  grid.appendChild(leftCol); grid.appendChild(mid); grid.appendChild(rightCol);
+  list.appendChild(grid);
+  document.getElementById('diffSummary').textContent=`${changed} changed line(s)`;
+}
+function tokenDiff(L,R){
+  const lt=L.split(/(\s+)/), rt=R.split(/(\s+)/);
+  const n=lt.length,m=rt.length;
+  const dp=Array(n+1).fill(0).map(()=>Array(m+1).fill(0));
+  for(let i=n-1;i>=0;i--) for(let j=m-1;j>=0;j--) dp[i][j]=lt[i]===rt[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  let i=0,j=0, Lhtml='', Rhtml='';
+  const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  while(i<n||j<m){
+    if(i<n&&j<m&&lt[i]===rt[j]){ Lhtml+=esc(lt[i]); Rhtml+=esc(rt[j]); i++; j++; }
+    else if(j<m && (i===n || dp[i][j+1]>=dp[i+1][j])){ Rhtml+=`<span class="token add">${esc(rt[j])}</span>`; j++; }
+    else { Lhtml+=`<span class="token del">${esc(lt[i])}</span>`; i++; }
+  }
+  return {leftHTML:Lhtml,rightHTML:Rhtml};
+}
+function refreshPane(idx){
+  const t=getActiveTab(); const pane=panesContainer.querySelectorAll('.pane')[idx]; if(!pane) return;
+  const ta=pane.querySelector('textarea'); ta.value=t.panes[idx].content||''; updatePane(idx); saveToStorage();
+}
+
+/* =========================
+   Theme / Font / Wrap
+   ========================= */
+function changeTheme(theme){ document.body.classList.toggle('light-theme', theme==='light'); }
+function changeFontSize(size){
+  panesContainer.querySelectorAll('.pane').forEach((p,i)=>{
+    const ta=p.querySelector('textarea'); const g=p.querySelector('.gutter');
+    ta.style.fontSize=size+'px'; g.style.fontSize=size+'px';
+    syncPaneMetrics(i);
+    updatePane(i);
+  });
+  const t=getActiveTab(); if(t) updatePane(t.activePane);
+}
+document.getElementById('wordWrap').addEventListener('change',e=>{
+  const wrap=e.target.checked;
+  panesContainer.querySelectorAll('.pane').forEach((p,i)=>{
+    const ta=p.querySelector('textarea');
+    ta.style.whiteSpace=wrap?'pre-wrap':'pre'; ta.style.wordWrap=wrap?'break-word':'normal';
+    syncPaneMetrics(i);
+    updatePane(i);
+  });
+});
+
+/* =========================
+   Persist current tab panes
+   ========================= */
+function saveCurrentTabContent(){
+  const t=getActiveTab(); if(!t) return;
+  const panes=panesContainer.querySelectorAll('.pane');
+  t.panes=Array.from(panes).map((p,i)=>({content:p.querySelector('textarea').value,bookmarks:t.panes[i]?t.panes[i].bookmarks:new Set()}));
+}
+
+/* =========================
+   Init
+   ========================= */
+window.addEventListener('beforeunload', saveToStorage);
+setInterval(saveToStorage,30000);
+addEventListener('resize', () => {
+  const t=getActiveTab(); if(!t) return;
+  t.panes.forEach((_, i)=>{ syncPaneMetrics(i); updatePane(i); });
+});
+
+function clearAllStorage(){
+  if(confirm('Clear all saved tabs and data?')){
+    localStorage.removeItem('notepadData');
+    tabs=[]; activeTabId=null; panesContainer.innerHTML=''; tabBar.innerHTML='';
+    createTab('Untitled');
+  }
+}
+function trimWhitespace(){
+  const ta=getActiveTextarea(); if(!ta) return;
+  ta.value = ta.value.replace(/[ \t]+$/gm,''); updateAllUI(); scheduleAutoSave();
+}
+function convertTabsToSpaces(){
+  const ta=getActiveTextarea(); if(!ta) return;
+  ta.value = ta.value.replace(/\t/g, INDENT); updateAllUI(); scheduleAutoSave();
+}
+
+function init(){ if(!loadFromStorage()) createTab('Untitled'); updateAllUI(); }
+init();
+</script>
 </body>
 </html>
