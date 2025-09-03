@@ -31,7 +31,7 @@
 
   .gutter{
     width:50px;background:var(--bg-secondary);color:var(--text-secondary);text-align:right;
-    padding:10px 8px 10px 4px;font:inherit;white-space:normal; /* IMPORTANT: no 'pre' */
+    padding:10px 8px 10px 4px;font:inherit;white-space:normal;
     overflow:hidden;user-select:none;border-right:1px solid var(--border);box-sizing:border-box
   }
   .gutter .line-number{display:block}
@@ -41,21 +41,20 @@
     color:var(--text-primary);white-space:pre-wrap;word-wrap:break-word;overflow:auto;tab-size:3;line-height:1.5}
   textarea::selection{background:var(--accent);color:#fff}
 
-  .current-line-highlight{position:absolute;left:50px;right:0;background:rgba(255,255,255,.06);pointer-events:none;z-index:1;height:0;display:none}
+  .current-line-highlight{position:absolute;left:50px;right:0;background:rgba(255,255,255,.06);pointer-events:none;z-index:2;height:0;display:none}
 
   .resizer{width:6px;cursor:col-resize;background:transparent;position:relative}
   .resizer::after{content:'';position:absolute;top:0;bottom:0;left:2px;width:2px;background:var(--border);opacity:.8}
   .resizer.vertical{height:6px;width:100%;cursor:row-resize}
   .resizer.vertical::after{top:2px;left:0;right:0;height:2px;width:100%}
 
-  #tools{width:280px;background:var(--bg-secondary);color:var(--text-primary);padding:15px;box-sizing:border-box;border-left:1px solid var(--border);overflow-y:auto}
+  #tools{width:300px;background:var(--bg-secondary);color:var(--text-primary);padding:15px;box-sizing:border-box;border-left:1px solid var(--border);overflow-y:auto}
   #tools h3{margin:0 0 10px;font-size:14px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:5px}
   #tools label{display:block;margin-top:10px;font-size:12px}
   #tools input[type=text],#tools input[type=number],#tools select{width:100%;padding:6px;margin-top:3px;box-sizing:border-box;font-size:12px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:3px}
   #tools button{margin-top:8px;padding:6px 10px;border:1px solid var(--border);background:var(--bg-tertiary);color:var(--text-primary);cursor:pointer;border-radius:3px;font-size:12px}
   #tools button:hover{background:var(--accent)}
 
-  /* Tab strip — tightened height */
   #tabBar{
     display:flex;background:var(--bg-secondary);
     border-top:1px solid var(--border);
@@ -63,10 +62,8 @@
     overflow-x:auto;min-height:28px;
   }
   .tab{
-    padding:4px 8px;
-    background:var(--bg-tertiary);
-    margin-right:4px;border-radius:6px 6px 0 0;cursor:pointer;display:flex;align-items:center;
-    user-select:none;border:1px solid var(--border);border-bottom:none;position:relative;transition:all .2s ease;
+    padding:4px 8px;background:var(--bg-tertiary);margin-right:4px;border-radius:6px 6px 0 0;cursor:pointer;display:flex;align-items:center;
+    user-select:none;border:1px solid var(--border);border-bottom:none;transition:all .2s ease;
     font-size:12px;color:var(--text-secondary);min-width:80px;max-width:200px;height:24px;
   }
   .tab:hover{background:var(--bg-primary);color:var(--text-primary)}
@@ -104,12 +101,33 @@
   ::-webkit-scrollbar-track{background:var(--bg-secondary)}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
   ::-webkit-scrollbar-thumb:hover{background:var(--text-secondary)}
+
+  /* highlight overlay */
+  .highlight-overlay{
+    position:absolute; left:50px; right:0; top:0; bottom:0;
+    pointer-events:none; white-space:pre-wrap; word-wrap:break-word;
+    overflow:hidden; font:inherit; line-height:inherit;
+    color:transparent; padding:10px; z-index:1;
+  }
+  .highlight-overlay mark{ background:rgba(255, 235, 59, .35); border-radius:2px; padding:0; }
+
+  /* Find HUD */
+  #findHud{
+    position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    background:var(--bg-secondary); color:var(--text-primary);
+    border:1px solid var(--border); border-radius:8px; padding:8px 10px;
+    display:none; align-items:center; gap:10px; z-index:2000; font-size:12px;
+    box-shadow:0 4px 14px rgba(0,0,0,.25);
+  }
+  #findHud .btn{cursor:pointer; border:1px solid var(--border); background:var(--bg-tertiary); padding:4px 8px; border-radius:4px}
+  #findHud .btn:hover{background:var(--accent); color:#fff}
+  #findHud .light{opacity:.8}
 </style>
 </head>
 <body class="light-theme">
   <div id="toolbar">
     <div class="file-input-wrapper">
-      <input type="file" id="fileInput" accept=".txt,.js,.html,.css,.py,.json,.xml,.md" multiple>
+      <input type="file" id="fileInput" accept=".txt,.js,.html,.css,.py,.json,.xml,.md,.php" multiple>
       <label for="fileInput" class="file-input-label">📁 Open</label>
     </div>
     <button onclick="downloadFile()">💾 Save</button>
@@ -117,6 +135,7 @@
     <div class="separator"></div>
     <button onclick="duplicateLine()">📋 Duplicate</button>
     <button onclick="showFindModal()">🔎 Find</button>
+    <button onclick="clearHighlightsAndHud()">✖ Clear Highlight (Esc)</button>
     <div class="separator"></div>
     <label>Font Size:</label><input type="number" id="fontSizeSlider" min="8" max="32" value="14" onchange="changeFontSize(this.value)">
     <label>Theme:</label>
@@ -162,13 +181,16 @@
         <option value="html">HTML</option>
         <option value="css">CSS</option>
         <option value="json">JSON</option>
+        <option value="php">PHP</option>
       </select>
 
       <label>Comment Style:</label>
       <select id="commentStyle">
         <option value="#" selected>#   (Python, Bash)</option>
         <option value="//">//  (JavaScript, C++)</option>
-        <option value="'''">''' Block (Python)</option>
+        <option value="block">/* */ Block (C/JS/PHP/CSS)</option>
+        <option value="triple">''' Block (Python)</option>
+        <option value="html-block">&lt;!-- --&gt; Block (HTML)</option>
       </select>
 
       <h3>Code Tools</h3>
@@ -188,6 +210,7 @@
     <div class="status-item">Lines: <span id="totalLines">1</span></div>
     <div class="status-item">Chars: <span id="charCount">0</span></div>
     <div class="status-item pill">Pane: <span id="paneStatus">1/1</span></div>
+    <div class="status-item pill">Matches: <span id="matchCount">0</span></div>
   </div>
 
   <!-- Goto & Find -->
@@ -223,6 +246,15 @@
     <div id="diffList"></div>
   </div></div>
 
+  <!-- Find HUD -->
+  <div id="findHud">
+    <span id="findHudText">0 matches</span>
+    <button class="btn" onclick="findPrev()">Prev</button>
+    <button class="btn" onclick="findNext()">Next</button>
+    <span class="light">•</span>
+    <button class="btn" onclick="clearHighlightsAndHud()">Close</button>
+  </div>
+
 <script>
 /* =========================
    Config & State
@@ -236,13 +268,18 @@ const tabBar=document.getElementById('tabBar');
 const paneStatus=document.getElementById('paneStatus');
 const storageStatus=document.getElementById('storageStatus');
 const commentStyleSelector=document.getElementById('commentStyle');
+const languageSelector=document.getElementById('languageSelector');
+
+const findHud = document.getElementById('findHud');
+const findHudText = document.getElementById('findHudText');
+let findState = { term:'', lastDir:1 };
 
 const getActiveTab = ()=>tabs.find(t=>t.id===activeTabId);
 const px=n=>`${n}px`;
 const showModal=id=>document.getElementById(id).style.display='block';
 const closeModal=id=>document.getElementById(id).style.display='none';
 
-/* Robust line-height in px (handles 'normal') */
+/* Utils */
 function lineHeightPx(el){
   const cs=getComputedStyle(el);
   let lh=parseFloat(cs.lineHeight);
@@ -257,6 +294,20 @@ function lineHeightPx(el){
   }
   return lh;
 }
+function escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function escHTML(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+/* Highlight state */
+function getHighlightTerm(){ const t=getActiveTab(); return t && (t.highlightTerm || ''); }
+function setHighlightTerm(term){
+  const t=getActiveTab(); if(!t) return;
+  t.highlightTerm = (term || '').trim();
+  t.panes.forEach((_, i)=>renderHighlights(i));
+  updateMatchCount();
+  saveToStorage();
+}
+function clearHighlights(){ setHighlightTerm(''); }
+function clearHighlightsAndHud(){ hideFindHud(true); }
 
 /* =========================
    Storage
@@ -277,7 +328,8 @@ function loadFromStorage(){
     tabs=(data.tabs||[]).map(t=>({
       id:t.id,name:t.name||'Untitled',language:t.language||'python',layout:t.layout||'row',
       panes:(t.panes&&t.panes.length?t.panes:[{content:t.content||''}]).map(p=>({content:p.content||'',bookmarks:new Set(p.bookmarks||[])})),
-      activePane:typeof t.activePane==='number'?t.activePane:0
+      activePane:typeof t.activePane==='number'?t.activePane:0,
+      highlightTerm: t.highlightTerm || ''
     }));
     activeTabId=data.activeTabId || (tabs[0]&&tabs[0].id);
     if(tabs.length){ renderTabs(); switchTab(activeTabId); return true; }
@@ -286,14 +338,13 @@ function loadFromStorage(){
 }
 
 /* =========================
-   Tabs (dbl-click rename with single-click separation)
+   Tabs
    ========================= */
 function createTab(name='Untitled', content='', language='python'){
   const id=Date.now().toString();
-  tabs.push({id,name,language,layout:'row',panes:[{content,bookmarks:new Set()}],activePane:0});
+  tabs.push({id,name,language,layout:'row',panes:[{content,bookmarks:new Set()}],activePane:0,highlightTerm:''});
   renderTabs(); switchTab(id); saveToStorage();
 }
-
 function renderTabs(){
   tabBar.innerHTML='';
   tabs.forEach(tab=>{
@@ -304,15 +355,12 @@ function renderTabs(){
     nameSpan.textContent=tab.name;
     nameSpan.title=tab.name;
 
-    // dblclick to rename (cancel pending single-click switch)
     tabEl.addEventListener('dblclick',(e)=>{
       e.preventDefault(); e.stopPropagation();
       const pending=singleClickTimers.get(tab.id);
       if(pending){ clearTimeout(pending); singleClickTimers.delete(tab.id); }
       startRename(tab, tabEl, nameSpan);
     });
-
-    // single click switch, only when truly a single click
     tabEl.addEventListener('click',(e)=>{
       if(renamingTabId) return;
       if(e.detail !== 1) return;
@@ -328,13 +376,11 @@ function renderTabs(){
     tabEl.appendChild(closeBtn);
     tabBar.appendChild(tabEl);
   });
-
   const addBtn=document.createElement('div');
   addBtn.id='addTab'; addBtn.textContent='+'; addBtn.title='Add new tab';
   addBtn.addEventListener('click',()=>createTab(`Tab ${tabs.length+1}`));
   tabBar.appendChild(addBtn);
 }
-
 function startRename(tab, tabEl, nameSpan){
   if(renamingTabId) return;
   renamingTabId=tab.id;
@@ -343,17 +389,13 @@ function startRename(tab, tabEl, nameSpan){
   input.style.border='1px solid var(--accent)'; input.style.borderRadius='4px';
   input.style.background='var(--bg-primary)'; input.style.color='var(--text-primary)';
   input.style.font='inherit'; input.style.minWidth='120px';
-
   const commit=()=>{ tab.name=input.value.trim()||tab.name; renamingTabId=null; renderTabs(); saveToStorage(); };
   const cancel=()=>{ renamingTabId=null; renderTabs(); };
-
   input.addEventListener('blur', commit);
   input.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter') commit(); if(ev.key==='Escape') cancel(); });
-
   tabEl.replaceChild(input, nameSpan);
   input.focus(); input.select();
 }
-
 function closeTab(id){
   if(!confirm('Delete this tab?')) return;
   const i=tabs.findIndex(t=>t.id===id); tabs.splice(i,1);
@@ -362,7 +404,6 @@ function closeTab(id){
     f?switchTab(f.id):(activeTabId=null, panesContainer.innerHTML='', renderTabs(), createTab('Untitled'));
   }else{ renderTabs(); saveToStorage(); }
 }
-
 function switchTab(id){
   saveCurrentTabContent();
   activeTabId=id; const t=getActiveTab(); if(!t) return;
@@ -370,6 +411,8 @@ function switchTab(id){
   renderPanesForTab(t);
   renderTabs();
   const ta=getActiveTextarea(); if(ta) ta.focus();
+  languageSelector.value = t.language || 'python';
+  t.panes.forEach((_, i)=>{ syncPaneMetrics(i); updatePane(i); renderHighlights(i); });
   updateAllUI(); scheduleAutoSave();
 }
 
@@ -384,7 +427,7 @@ function getActiveTextarea(){
 function getPaneNodes(idx){
   const pane=panesContainer.querySelectorAll('.pane')[idx];
   if(!pane) return {};
-  return {pane, gutter:pane.querySelector('.gutter'), ta:pane.querySelector('textarea'), hl:pane.querySelector('.current-line-highlight')};
+  return {pane, gutter:pane.querySelector('.gutter'), ta:pane.querySelector('textarea'), hl:pane.querySelector('.current-line-highlight'), ov:pane.querySelector('.highlight-overlay')};
 }
 function renderPanesForTab(tab){
   panesContainer.innerHTML=''; panesContainer.style.flexDirection=tab.layout||'row';
@@ -392,22 +435,34 @@ function renderPanesForTab(tab){
     const pane=document.createElement('div'); pane.className='pane';
     const gutter=document.createElement('div'); gutter.className='gutter'; pane.appendChild(gutter);
     const hl=document.createElement('div'); hl.className='current-line-highlight'; pane.appendChild(hl);
+    const overlay=document.createElement('div'); overlay.className='highlight-overlay'; pane.appendChild(overlay);
+
     const ta=document.createElement('textarea'); ta.value=p.content||'';
 
-    // mirror font-size & lock line-height (px) for both TA and gutter
     const fs=(document.getElementById('fontSizeSlider').value||14)+'px';
-    ta.style.fontSize=fs; gutter.style.fontSize=fs;
-    const wrap=document.getElementById('wordWrap').checked; ta.style.whiteSpace=wrap?'pre-wrap':'pre'; ta.style.wordWrap=wrap?'break-word':'normal';
-    const lh=lineHeightPx(ta); ta.style.lineHeight=lh+'px'; gutter.style.lineHeight=lh+'px'; hl.style.height=px(lh);
+    ta.style.fontSize=fs; gutter.style.fontSize=fs; overlay.style.fontSize=fs;
+    const wrap=document.getElementById('wordWrap').checked; 
+    ta.style.whiteSpace=wrap?'pre-wrap':'pre'; ta.style.wordWrap=wrap?'break-word':'normal';
+    overlay.style.whiteSpace=ta.style.whiteSpace; overlay.style.wordWrap=ta.style.wordWrap;
+    const lh=lineHeightPx(ta); ta.style.lineHeight=lh+'px'; gutter.style.lineHeight=lh+'px'; hl.style.height=px(lh); overlay.style.lineHeight=lh+'px';
 
-    // keep scroll in sync both ways
-    ta.addEventListener('scroll', ()=>{ gutter.scrollTop=ta.scrollTop; positionHL(idx); });
+    ta.addEventListener('scroll', ()=>{ 
+      gutter.scrollTop=ta.scrollTop; 
+      overlay.scrollTop=ta.scrollTop;
+      positionHL(idx); 
+    });
     gutter.addEventListener('wheel', (e)=>{ e.preventDefault(); ta.scrollTop += e.deltaY; }, {passive:false});
 
-    ta.addEventListener('input', ()=>{ tab.panes[idx].content=ta.value; updatePane(idx); if(tab.activePane===idx) updateStatusBar(); scheduleAutoSave(); });
+    ta.addEventListener('input', ()=>{ tab.panes[idx].content=ta.value; updatePane(idx); renderHighlights(idx); if(tab.activePane===idx) updateStatusBar(); scheduleAutoSave(); });
     ta.addEventListener('focus', ()=>{ tab.activePane=idx; updateAllUI(); });
     ta.addEventListener('click', ()=>{ if(tab.activePane!==idx) tab.activePane=idx; updateAllUI(); });
-    ta.addEventListener('keyup', updateAllUI);
+    ta.addEventListener('keyup', ()=>{ updateAllUI(); renderHighlights(idx); });
+
+    ta.addEventListener('dblclick', ()=>{
+      const s=ta.selectionStart, e=ta.selectionEnd;
+      const w=(ta.value.slice(s,e) || '').trim();
+      if(w && /\S/.test(w)){ setHighlightTerm(w); showFindHud(); }
+    });
 
     pane.appendChild(ta); panesContainer.appendChild(pane);
     if(idx<tab.panes.length-1){ const rz=document.createElement('div'); rz.className='resizer'; panesContainer.appendChild(rz); initResizer(rz); }
@@ -415,9 +470,8 @@ function renderPanesForTab(tab){
   if(typeof tab.activePane!=='number'||tab.activePane>=tab.panes.length) tab.activePane=0;
   const ta=getActiveTextarea(); if(ta) ta.focus();
   setLayout(tab.layout||'row');
-  tab.panes.forEach((_,i)=>updatePane(i));
+  tab.panes.forEach((_,i)=>{ updatePane(i); renderHighlights(i); });
 }
-
 function initResizer(rz){
   let sx=0,sy=0,prevSize=0,nextSize=0,prevPane,nextPane;
   function down(e){
@@ -469,32 +523,39 @@ function equalizePartitions(){ panesContainer.querySelectorAll('.pane').forEach(
    Gutter + highlight + status
    ========================= */
 function syncPaneMetrics(idx){
-  const {gutter, ta, hl} = getPaneNodes(idx);
+  const {gutter, ta, hl, ov} = getPaneNodes(idx);
   if(!gutter || !ta || !hl) return;
 
   const fs = getComputedStyle(ta).fontSize;
   gutter.style.fontSize = fs;
+  if(ov) ov.style.fontSize = fs;
 
   const lh = lineHeightPx(ta);
   ta.style.lineHeight = lh + 'px';
   gutter.style.lineHeight = lh + 'px';
   hl.style.height = lh + 'px';
+  if(ov) ov.style.lineHeight = lh + 'px';
 
   const cs = getComputedStyle(ta);
   gutter.style.paddingTop = cs.paddingTop;
   gutter.style.paddingBottom = cs.paddingBottom;
 
+  if(ov){
+    ov.style.paddingTop = cs.paddingTop;
+    ov.style.paddingBottom = cs.paddingBottom;
+    ov.style.paddingLeft = cs.paddingLeft;
+    ov.style.paddingRight = cs.paddingRight;
+    ov.style.whiteSpace = ta.style.whiteSpace;
+    ov.style.wordWrap = ta.style.wordWrap;
+    ov.scrollTop = ta.scrollTop;
+  }
   gutter.scrollTop = ta.scrollTop;
 }
-
 function updatePane(idx){
   const t=getActiveTab(); const {ta,gutter}=getPaneNodes(idx); if(!ta||!gutter) return;
-
   syncPaneMetrics(idx);
-
   const lines=ta.value.split('\n');
   const caretLine = ta.value.substring(0,ta.selectionStart).split('\n').length;
-
   let html='';
   const lh=parseFloat(getComputedStyle(ta).lineHeight);
   for(let n=1;n<=lines.length;n++){
@@ -504,6 +565,7 @@ function updatePane(idx){
   gutter.innerHTML=html;
   gutter.scrollTop = ta.scrollTop;
   positionHL(idx);
+  renderHighlights(idx);
 }
 function positionHL(idx){
   const {ta,hl}=getPaneNodes(idx); if(!ta||!hl) return;
@@ -521,8 +583,35 @@ function updateStatusBar(){
   document.getElementById('totalLines').textContent=ta.value.split('\n').length;
   document.getElementById('charCount').textContent=ta.value.length;
   paneStatus.textContent=`${(t.activePane??0)+1}/${t.panes.length}`;
+  updateMatchCount();
 }
 function updateAllUI(){ const t=getActiveTab(); if(t) updatePane(t.activePane); updateStatusBar(); }
+
+/* highlight rendering & match count */
+function renderHighlights(idx){
+  const term=getHighlightTerm(); const {ov,ta}=getPaneNodes(idx);
+  if(!ov || !ta) return;
+  if(!term){ ov.innerHTML=''; return; }
+  try{
+    const re=new RegExp(escRe(term),'g');
+    const html=escHTML(ta.value).replace(re, m=>`<mark>${m}</mark>`);
+    ov.innerHTML=html;
+    ov.scrollTop=ta.scrollTop;
+  }catch(e){ ov.innerHTML=''; }
+}
+function updateMatchCount(){
+  const t=getActiveTab(); if(!t){ document.getElementById('matchCount').textContent='0'; return; }
+  const term=getHighlightTerm();
+  if(!term){ document.getElementById('matchCount').textContent='0'; findHudText.textContent='0 matches'; return; }
+  const re=new RegExp(escRe(term),'g');
+  let total=0, paneTotal=0;
+  t.panes.forEach((p,i)=>{
+    const m=(p.content||'').match(re);
+    const c=m?m.length:0; total+=c; if(i===t.activePane) paneTotal=c;
+  });
+  document.getElementById('matchCount').textContent=String(total);
+  findHudText.textContent = `${paneTotal} in pane • ${total} total`;
+}
 
 /* =========================
    File / Find / Goto / Replace
@@ -536,7 +625,7 @@ function downloadFile(){
 document.getElementById('fileInput').addEventListener('change',e=>{
   Array.from(e.target.files).forEach(file=>{
     const r=new FileReader();
-    r.onload=ev=>createTab(file.name, ev.target.result, 'python');
+    r.onload=ev=>createTab(file.name, ev.target.result, languageSelector.value || 'python');
     r.readAsText(file);
   });
 });
@@ -548,10 +637,12 @@ function gotoLine(){
 }
 function showFindModal(){ showModal('findModal'); document.getElementById('findInput').focus(); }
 function findText(){
-  const ta=getActiveTextarea(); const s=document.getElementById('findInput').value; if(!ta||!s) return closeModal('findModal');
-  const c=ta.value.toLowerCase(), term=s.toLowerCase(), i=c.indexOf(term, ta.selectionStart);
-  if(i!==-1){ ta.selectionStart=i; ta.selectionEnd=i+s.length; ta.focus(); }
-  closeModal('findModal');
+  const ta=getActiveTextarea(); const s=document.getElementById('findInput').value; closeModal('findModal');
+  if(!ta || !s){ return; }
+  setHighlightTerm(s);
+  findState.term = s;
+  selectNextOccurrence(1);
+  showFindHud();
 }
 document.getElementById('replaceBtn').addEventListener('click',()=>{
   const ta=getActiveTextarea(); if(!ta) return;
@@ -562,17 +653,170 @@ document.getElementById('replaceBtn').addEventListener('click',()=>{
   try{
     const re = useRegex ? new RegExp(search,'g') : new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');
     ta.value = ta.value.replace(re, replace);
+    const t=getActiveTab(); if(t) t.panes[t.activePane].content=ta.value;
+    setHighlightTerm(search);
     updateAllUI(); scheduleAutoSave();
+    showFindHud();
   }catch(e){ alert('Invalid regex'); }
 });
 
+/* Find HUD helpers */
+function showFindHud(){ findHud.style.display='flex'; updateMatchCount(); }
+function hideFindHud(clear=false){
+  findHud.style.display='none';
+  if(clear){ clearHighlights(); updateAllUI(); }
+}
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape'){
+    if(findHud.style.display!=='none'){ e.preventDefault(); hideFindHud(true); }
+  }
+});
+function findNext(){ findState.lastDir=1; selectNextOccurrence(1); }
+function findPrev(){ findState.lastDir=-1; selectNextOccurrence(-1); }
+function selectNextOccurrence(dir){
+  const ta=getActiveTextarea(); const term=getHighlightTerm(); if(!ta||!term) return;
+  const content=ta.value;
+  if(dir===1){
+    const start = ta.selectionEnd ?? 0;
+    const i = content.indexOf(term, start);
+    const pos = (i!==-1) ? i : content.indexOf(term, 0);
+    if(pos!==-1){ ta.selectionStart=pos; ta.selectionEnd=pos+term.length; ta.focus(); ensureVisible(ta); }
+  }else{
+    const start = (ta.selectionStart ?? content.length);
+    const before = content.slice(0, Math.max(0,start-term.length));
+    const pos = before.lastIndexOf(term);
+    const wrapped = (pos===-1) ? content.lastIndexOf(term) : pos;
+    if(wrapped!==-1){ ta.selectionStart=wrapped; ta.selectionEnd=wrapped+term.length; ta.focus(); ensureVisible(ta); }
+  }
+  updateMatchCount();
+}
+function ensureVisible(ta){
+  const pos=ta.selectionStart;
+  const textUpToPos=ta.value.slice(0,pos);
+  const lineIndex=textUpToPos.split('\n').length-1;
+  const lh=lineHeightPx(ta);
+  const pt=parseFloat(getComputedStyle(ta).paddingTop)||0;
+  const lineTop=lineIndex*lh;
+  const viewTop=ta.scrollTop;
+  const viewBot=ta.scrollTop + ta.clientHeight - lh;
+  if(lineTop < viewTop) ta.scrollTop = Math.max(0, lineTop - lh*2);
+  else if(lineTop > viewBot) ta.scrollTop = lineTop - (ta.clientHeight - lh*3);
+}
+
 /* =========================
-   Editing / Indent & Comment (3-space Python-friendly)
+   Commenting: safe style map
+   ========================= */
+const COMMENT_STYLES = {
+  '#':        { kind:'line', token:'#' },
+  '//':       { kind:'line', token:'//' },
+  'block':    { kind:'block', open:'/*',  close:'*/' },
+  'triple':   { kind:'block', open:"'''", close:"'''" },
+  'html-block': { kind:'block', open:'<!--', close:'-->' }
+};
+
+function toggleComment(){
+  const ta=getActiveTextarea(); if(!ta) return;
+  const pick = COMMENT_STYLES[commentStyleSelector.value] || COMMENT_STYLES['#'];
+  const s=ta.selectionStart, e=ta.selectionEnd, v=ta.value;
+  const selected=v.slice(s,e);
+  const before=v.slice(0,s), after=v.slice(e);
+
+  if(pick.kind==='block'){
+    const {open, close}=pick;
+    const trimmed=selected.trim();
+    if(trimmed.startsWith(open) && trimmed.endsWith(close)){
+      // unwrap (search within selection to preserve leading/trailing space)
+      const start = selected.indexOf(open);
+      const end = selected.lastIndexOf(close);
+      const inner = selected.slice(0,start) + selected.slice(start+open.length, end) + selected.slice(end+close.length);
+      ta.value = before + inner + after;
+      ta.selectionStart = s; ta.selectionEnd = s + inner.length;
+    }else{
+      const isSingleLine = !selected.includes('\n');
+      const block = isSingleLine ? `${open} ${selected} ${close}` : `${open}\n${selected}\n${close}`;
+      ta.value = before + block + after;
+      const offset = isSingleLine ? open.length + 1 : open.length + 1;
+      ta.selectionStart = s + offset; ta.selectionEnd = s + offset + selected.length;
+    }
+    updateAllUI(); scheduleAutoSave(); return;
+  }
+
+  // line comments
+  const token = pick.token;
+  if(selected.includes('\n')){
+    const lines=selected.split('\n');
+    const allCommented = lines.every(l=>l.trim()==='' || l.trim().startsWith(token));
+    const out = lines.map(l=>{
+      if(l.trim()==='') return l;
+      if(allCommented){
+        const re = new RegExp('^(\\s*)'+escRe(token)+'\\s?');
+        return l.replace(re,'$1');
+      }else{
+        return l.replace(/^(\s*)/, `$1${token} `);
+      }
+    }).join('\n');
+    ta.value = before + out + after;
+    ta.selectionStart=s; ta.selectionEnd=s+out.length;
+  }else{
+    const ls=v.lastIndexOf('\n',s-1)+1, le=v.indexOf('\n',s); const end = le===-1? v.length : le;
+    const line=v.slice(ls,end);
+    const re = new RegExp('^(\\s*)'+escRe(token)+'\\s?');
+    let newLine;
+    if(line.trim().startsWith(token)){ newLine=line.replace(re,'$1'); }
+    else{ newLine=line.replace(/^(\s*)/, `$1${token} `); }
+    ta.value = v.slice(0,ls)+newLine+v.slice(end);
+    const delta = newLine.length - line.length;
+    ta.selectionStart = ta.selectionEnd = s + delta;
+  }
+  updateAllUI(); scheduleAutoSave();
+}
+
+/* Convert selection to the style chosen (if there’s a selection) */
+commentStyleSelector.addEventListener('change', ()=>{
+  const ta=getActiveTextarea(); if(!ta) return;
+  if(ta.selectionStart===ta.selectionEnd) return;
+  recommentSelection(commentStyleSelector.value);
+});
+
+function recommentSelection(styleKey){
+  const ta=getActiveTextarea(); if(!ta) return;
+  const pick = COMMENT_STYLES[styleKey] || COMMENT_STYLES['#'];
+  const s=ta.selectionStart, e=ta.selectionEnd, v=ta.value;
+  let sel=v.slice(s,e), before=v.slice(0,s), after=v.slice(e);
+
+  // strip block wrappers
+  [['/*','*/'], ["'''","'''"], ['<!--','-->']].forEach(([o,c])=>{
+    const t=sel.trim();
+    if(t.startsWith(o) && t.endsWith(c)){
+      const start=sel.indexOf(o), end=sel.lastIndexOf(c);
+      sel = sel.slice(0,start) + sel.slice(start+o.length, end) + sel.slice(end+c.length);
+    }
+  });
+  // strip line prefixes
+  sel = sel.split('\n').map(l=> l.replace(/^(\s*)#\s?/, '$1').replace(/^(\s*)\/\/\s?/, '$1')).join('\n');
+
+  if(pick.kind==='block'){
+    const {open, close}=pick;
+    const block = sel.includes('\n') ? `${open}\n${sel}\n${close}` : `${open} ${sel} ${close}`;
+    ta.value = before + block + after;
+    ta.selectionStart = s + (sel.includes('\n') ? open.length+1 : open.length+1);
+    ta.selectionEnd = ta.selectionStart + sel.length;
+  }else{
+    const token = pick.token;
+    const out = sel.split('\n').map(l=> l.trim()==='' ? l : `${token} ${l}`).join('\n');
+    ta.value = before + out + after;
+    ta.selectionStart = s; ta.selectionEnd = s + out.length;
+  }
+  updateAllUI(); scheduleAutoSave();
+}
+
+/* =========================
+   Editing / Indent & Comment (multi-language aware)
    ========================= */
 document.addEventListener('keydown', e=>{
   const ta=getActiveTextarea(); if(!ta) return;
 
-  // Ctrl+/ → toggle comment
+  // Ctrl+/ toggles using the currently selected style
   if((e.ctrlKey||e.metaKey) && e.key==='/'){ e.preventDefault(); toggleComment(); return; }
 
   // Tab / Shift+Tab
@@ -587,14 +831,72 @@ document.addEventListener('keydown', e=>{
     e.preventDefault(); unindentSelection(); updateAllUI(); scheduleAutoSave(); return;
   }
 
-  // Enter with auto-indent (+3 after ':')
+  // Enter with auto-indent (Python, PHP, JS, CSS, JSON)
   if(e.key==='Enter'){
     e.preventDefault();
     const sPos=ta.selectionStart, ePos=ta.selectionEnd, v=ta.value;
     const before=v.slice(0,sPos), after=v.slice(ePos);
     const lastLine=before.split('\n').pop();
     const baseIndent=(lastLine.match(/^\s*/)||[''])[0];
-    const extra = lastLine.trimEnd().endsWith(':') ? INDENT : '';
+
+    const t=getActiveTab(); const lang=(t && t.language) || languageSelector.value || 'python';
+    let extra = '';
+    const trimmed = lastLine.trimEnd();
+
+    /* Python */
+    if(lang==='python'){ if(trimmed.endsWith(':')) extra=INDENT; }
+
+    /* PHP */
+    if(lang==='php'){
+      if(/<\?(?:php|=)?\s*$/i.test(trimmed)) extra = INDENT;        // after <?, <?php, <?= 
+      if(/\{\s*(\/\/.*)?$/.test(trimmed)) extra = INDENT;           // after {
+      if(/\b(if|elseif|else|foreach|for|while|switch|declare)\b[^{;]*:\s*(\/\/.*)?$/i.test(trimmed)) extra = INDENT; // alt syntax :
+      const closeAhead = after.match(/^\s*\}/);
+      if(closeAhead){
+        const reduced = baseIndent.endsWith(INDENT) ? baseIndent.slice(0,-INDENT.length) : baseIndent.replace(/^ {1,2}$/,'');
+        ta.value = before + '\n' + reduced + after;
+        ta.selectionStart = ta.selectionEnd = sPos + 1 + reduced.length;
+        updateAllUI(); scheduleAutoSave(); return;
+      }
+    }
+
+    /* JavaScript */
+    if(lang==='javascript'){
+      if(/\{\s*(\/\/.*)?$/.test(trimmed)) extra = INDENT;
+      if(/^\s*(case\b.+:|default:)\s*(\/\/.*)?$/.test(lastLine)) extra = INDENT;
+      const closeAhead = after.match(/^\s*\}/);
+      if(closeAhead){
+        const reduced = baseIndent.endsWith(INDENT) ? baseIndent.slice(0,-INDENT.length) : baseIndent.replace(/^ {1,2}$/,'');
+        ta.value = before + '\n' + reduced + after;
+        ta.selectionStart = ta.selectionEnd = sPos + 1 + reduced.length;
+        updateAllUI(); scheduleAutoSave(); return;
+      }
+    }
+
+    /* CSS */
+    if(lang==='css'){
+      if(/\{\s*$/.test(trimmed)) extra = INDENT;
+      const closeAhead = after.match(/^\s*\}/);
+      if(closeAhead){
+        const reduced = baseIndent.endsWith(INDENT) ? baseIndent.slice(0,-INDENT.length) : baseIndent.replace(/^ {1,2}$/,'');
+        ta.value = before + '\n' + reduced + after;
+        ta.selectionStart = ta.selectionEnd = sPos + 1 + reduced.length;
+        updateAllUI(); scheduleAutoSave(); return;
+      }
+    }
+
+    /* JSON */
+    if(lang==='json'){
+      if(/\{\s*$/.test(trimmed) || /\[\s*$/.test(trimmed)) extra = INDENT;
+      const closeAhead = after.match(/^\s*[\}\]]/);
+      if(closeAhead){
+        const reduced = baseIndent.endsWith(INDENT) ? baseIndent.slice(0,-INDENT.length) : baseIndent.replace(/^ {1,2}$/,'');
+        ta.value = before + '\n' + reduced + after;
+        ta.selectionStart = ta.selectionEnd = sPos + 1 + reduced.length;
+        updateAllUI(); scheduleAutoSave(); return;
+      }
+    }
+
     ta.value = before + '\n' + baseIndent + extra + after;
     ta.selectionStart = ta.selectionEnd = sPos + 1 + baseIndent.length + extra.length;
     updateAllUI(); scheduleAutoSave(); return;
@@ -614,6 +916,7 @@ document.addEventListener('keydown', e=>{
   }
 });
 
+/* Indent helpers */
 function indentSelection(){
   const ta=getActiveTextarea(); if(!ta) return;
   const s=ta.selectionStart,e=ta.selectionEnd,v=ta.value,sel=v.slice(s,e);
@@ -655,59 +958,6 @@ function duplicateLine(){
   updateAllUI(); scheduleAutoSave();
 }
 
-function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
-function toggleComment(){
-  const ta=getActiveTextarea(); if(!ta) return;
-  const style = commentStyleSelector.value; // '#', '//' or "'''"
-  const s=ta.selectionStart, e=ta.selectionEnd, v=ta.value;
-  const selected=v.slice(s,e);
-  const before=v.slice(0,s), after=v.slice(e);
-
-  if(style==="'''"){
-    const trimmed=selected.trim();
-    if(trimmed.startsWith("'''") && trimmed.endsWith("'''")){
-      const inner=trimmed.slice(3,-3);
-      ta.value = before + inner + after;
-      ta.selectionStart = s; ta.selectionEnd = s + inner.length;
-    }else{
-      const block="'''\n"+selected+"\n'''";
-      ta.value = before + block + after;
-      ta.selectionStart = s + 4; ta.selectionEnd = s + 4 + selected.length;
-    }
-    updateAllUI(); scheduleAutoSave(); return;
-  }
-
-  // line-style comments
-  const commentToken = style;
-  if(selected.includes('\n')){
-    const lines=selected.split('\n');
-    const allCommented = lines.every(l=>l.trim()==='' || l.trim().startsWith(commentToken));
-    const out = lines.map(l=>{
-      if(l.trim()==='') return l;
-      if(allCommented){
-        const re = new RegExp('^(\\s*)'+escapeRegex(commentToken)+'\\s?');
-        return l.replace(re,'$1');
-      }else{
-        return l.replace(/^(\s*)/, `$1${commentToken} `);
-      }
-    }).join('\n');
-    ta.value = before + out + after;
-    ta.selectionStart=s; ta.selectionEnd=s+out.length;
-  }else{
-    const ls=v.lastIndexOf('\n',s-1)+1, le=v.indexOf('\n',s); const end = le===-1? v.length : le;
-    const line=v.slice(ls,end);
-    const trimmed=line.trim();
-    const re = new RegExp('^(\\s*)'+escapeRegex(commentToken)+'\\s?');
-    let newLine;
-    if(trimmed.startsWith(commentToken)){ newLine=line.replace(re,'$1'); }
-    else{ newLine=line.replace(/^(\s*)/, `$1${commentToken} `); }
-    ta.value = v.slice(0,ls)+newLine+v.slice(end);
-    const delta = newLine.length - line.length;
-    ta.selectionStart = ta.selectionEnd = s + delta;
-  }
-  updateAllUI(); scheduleAutoSave();
-}
-
 /* =========================
    Persist current tab panes
    ========================= */
@@ -718,7 +968,7 @@ function saveCurrentTabContent(){
 }
 
 /* =========================
-   Diff (per-line arrows)
+   Diff
    ========================= */
 function openDiff(){
   const t=getActiveTab(); if(!t) return;
@@ -787,13 +1037,13 @@ function refreshPane(idx){
 }
 
 /* =========================
-   Theme / Font / Wrap
+   Theme / Font / Wrap / Language
    ========================= */
 function changeTheme(theme){ document.body.classList.toggle('light-theme', theme==='light'); }
 function changeFontSize(size){
   panesContainer.querySelectorAll('.pane').forEach((p,i)=>{
-    const ta=p.querySelector('textarea'); const g=p.querySelector('.gutter');
-    ta.style.fontSize=size+'px'; g.style.fontSize=size+'px';
+    const ta=p.querySelector('textarea'); const g=p.querySelector('.gutter'); const ov=p.querySelector('.highlight-overlay');
+    ta.style.fontSize=size+'px'; g.style.fontSize=size+'px'; if(ov) ov.style.fontSize=size+'px';
     syncPaneMetrics(i);
     updatePane(i);
   });
@@ -802,11 +1052,17 @@ function changeFontSize(size){
 document.getElementById('wordWrap').addEventListener('change',e=>{
   const wrap=e.target.checked;
   panesContainer.querySelectorAll('.pane').forEach((p,i)=>{
-    const ta=p.querySelector('textarea');
+    const ta=p.querySelector('textarea'); const ov=p.querySelector('.highlight-overlay');
     ta.style.whiteSpace=wrap?'pre-wrap':'pre'; ta.style.wordWrap=wrap?'break-word':'normal';
+    if(ov){ ov.style.whiteSpace=ta.style.whiteSpace; ov.style.wordWrap=ta.style.wordWrap; }
     syncPaneMetrics(i);
     updatePane(i);
   });
+});
+languageSelector.addEventListener('change', (e)=>{
+  const t=getActiveTab(); if(!t) return;
+  t.language = e.target.value || 'python';
+  saveToStorage();
 });
 
 /* =========================
@@ -825,9 +1081,8 @@ window.addEventListener('beforeunload', saveToStorage);
 setInterval(saveToStorage,30000);
 addEventListener('resize', () => {
   const t=getActiveTab(); if(!t) return;
-  t.panes.forEach((_, i)=>{ syncPaneMetrics(i); updatePane(i); });
+  t.panes.forEach((_, i)=>{ syncPaneMetrics(i); updatePane(i); renderHighlights(i); });
 });
-
 function clearAllStorage(){
   if(confirm('Clear all saved tabs and data?')){
     localStorage.removeItem('notepadData');
@@ -843,7 +1098,6 @@ function convertTabsToSpaces(){
   const ta=getActiveTextarea(); if(!ta) return;
   ta.value = ta.value.replace(/\t/g, INDENT); updateAllUI(); scheduleAutoSave();
 }
-
 function init(){ if(!loadFromStorage()) createTab('Untitled'); updateAllUI(); }
 init();
 </script>
