@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Python Editor (Brython)</title>
+
+  <!-- jQuery CDN -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <!-- Brython -->
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.13.0/brython.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.13.0/brython_stdlib.js"></script>
+
+  <!-- Styles -->
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background-color: #1e1e2f;
+      color: #ffffff;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #8be9fd;
+      margin-bottom: 20px;
+    }
+
+    .editor-container {
+      display: flex;
+      border: 1px solid #444;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 400px;
+      margin-bottom: 15px;
+      background-color: #2a2a3c;
+    }
+
+    #line-numbers {
+      background-color: #2d2d40;
+      color: #888;
+      padding: 10px 8px;
+      width: 40px;
+      text-align: right;
+      overflow: hidden;
+      white-space: pre-wrap;
+      line-height: 1.5em;
+      font-size: 14px;
+      user-select: none;
+    }
+
+    #editor {
+      flex-grow: 1;
+      border: none;
+      background-color: #1e1e2f;
+      color: #ffffff;
+      padding: 10px;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      overflow: auto;
+      line-height: 1.5em;
+    }
+
+    button {
+      background-color: #50fa7b;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #3de47b;
+    }
+
+    #out-container {
+      background: #ffffff;
+      color: #000000;
+      border-radius: 5px;
+      padding: 10px;
+      height: 250px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+
+    .label {
+      margin-top: 15px;
+      font-weight: bold;
+      color: #bd93f9;
+    }
+  </style>
+</head>
+<body onload="brython()">
+
+<h1>💻 Python Editor with Line Numbers (Brython)</h1>
+
+<div class="editor-container">
+  <div id="line-numbers">1</div>
+  <textarea id="editor" spellcheck="false" oninput="updateLineNumbers()" onscroll="syncScroll()">print("Hello World")</textarea>
+</div>
+
+<div style="text-align: center;">
+  <button id="run-btn" onclick="runPython()">▶ Run Code</button>
+</div>
+
+<div class="label">📝 Python Output:</div>
+<pre id="out-container"></pre>
+
+<!-- Brython Setup -->
+<script type="text/python" id="bootstrap">
+import sys
+from browser import document
+
+class Out:
+    def write(self, data): document["out-container"].textContent += data
+    def flush(self): pass
+
+sys.stdout = sys.stderr = Out()
+
+print("🔄 Brython initialized. Click 'Run Code' to execute.")
+</script>
+
+<!-- JavaScript Logic -->
+<script>
+const editor = document.getElementById('editor');
+const lineNumbers = document.getElementById('line-numbers');
+
+// Update line numbers based on editor content
+function updateLineNumbers() {
+  const lineCount = editor.value.split('\n').length;
+  let lines = '';
+  for (let i = 1; i <= lineCount; i++) {
+    lines += i + '\n';
+  }
+  lineNumbers.textContent = lines;
+}
+
+// Sync scrolling between line numbers and editor
+function syncScroll() {
+  lineNumbers.scrollTop = editor.scrollTop;
+}
+
+// Run Python code using Brython
+function runPython() {
+  const code = editor.value;
+  const out = document.getElementById('out-container');
+  out.textContent = "";
+
+  // Remove old dynamic scripts
+  document.querySelectorAll("script[type='text/python'].dynamic").forEach(s => s.remove());
+
+  // Compile and run code with accurate traceback
+  const wrappedCode = `
+import sys
+import traceback
+from browser import document
+
+class Out:
+    def write(self, data): document["out-container"].textContent += data
+    def flush(self): pass
+
+sys.stdout = sys.stderr = Out()
+
+user_code = ${JSON.stringify(code)}
+
+try:
+    code_obj = compile(user_code, "<user_code>", "exec")
+    exec(code_obj)
+except Exception:
+    tb = traceback.format_exc().splitlines()
+    filtered = [line for line in tb if "<user_code>" in line or line.strip().startswith("Traceback") or ":" in line or line.strip().startswith("SyntaxError") or line.strip().startswith("NameError")]
+    document["out-container"].textContent += "\\n".join(filtered)
+`;
+
+  const script = document.createElement('script');
+  script.type = 'text/python';
+  script.className = 'dynamic';
+  script.text = wrappedCode;
+
+  document.body.appendChild(script);
+  __BRYTHON__.run_script(script);
+}
+
+// Initialize on load
+$(document).ready(function () {
+  updateLineNumbers();
+});
+</script>
+
+</body>
+</html>
