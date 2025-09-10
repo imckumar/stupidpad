@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1101,5 +1102,79 @@ function convertTabsToSpaces(){
 function init(){ if(!loadFromStorage()) createTab('Untitled'); updateAllUI(); }
 init();
 </script>
+<python-runner></python-runner>
+
+<!-- Python Runner with collapsible output (fixed JS syntax) -->
+<script>
+(function(){
+ if(customElements.get('python-runner')) return;
+
+ const CDN="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/";
+ function loadPy(){ if(window.__pyReady) return window.__pyReady;
+   const s=document.createElement('script'); s.src=CDN+"pyodide.js"; document.head.appendChild(s);
+   window.__pyReady = new Promise(res=>{
+     s.onload = async ()=> res(await loadPyodide({indexURL:CDN}));
+   });
+   return window.__pyReady;
+ }
+
+ function getActiveCode(){
+   const el=document.activeElement;
+   return (el && el.tagName==="TEXTAREA") ? el.value : '';
+ }
+
+ customElements.define('python-runner',class extends HTMLElement{
+  connectedCallback(){
+    const sh=this.attachShadow({mode:'open'});
+    sh.innerHTML=`
+      <style>
+        :host{display:block;margin-top:.5rem;font-family:monospace}
+        #run{padding:4px 12px;border:1px solid #888;border-radius:4px;background:#eee;cursor:pointer;font-size:.85rem}
+        #panel{margin-top:4px;border:1px solid #ccc;border-radius:4px;display:none;position:relative}
+        #close{position:absolute;top:2px;right:6px;cursor:pointer;font-weight:bold;color:#a00;background:none;border:none}
+        #out{margin:0;padding:8px;height:120px;overflow:auto;background:#fafafa;white-space:pre-wrap}
+      </style>
+      <button id="run">Run ⌘/Ctrl+Enter</button>
+      <div id="panel">
+        <button id="close" title="Close">×</button>
+        <pre id="out"></pre>
+      </div>`;
+    const runBtn=sh.getElementById('run'),
+          panel=sh.getElementById('panel'),
+          closeBtn=sh.getElementById('close'),
+          out=sh.getElementById('out');
+
+    async function run(){
+      const code=getActiveCode();
+      if(!code.trim()){
+        out.textContent='(focus a textarea with code)';
+        panel.style.display='block';
+        return;
+      }
+      panel.style.display='block';
+      out.textContent='⏳ loading Python…';
+      const py=await loadPy();
+      py.globals.set('code', code);
+      out.textContent = py.runPython(`
+import sys, io, traceback
+buf = io.StringIO()
+sys.stdout = sys.stderr = buf
+try:
+    exec(code, {})
+except Exception:
+    traceback.print_exc()
+buf.getvalue()
+`);
+    }
+
+    runBtn.addEventListener('click', run);
+    document.addEventListener('keydown', e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='Enter') run(); });
+    closeBtn.addEventListener('click', ()=>{ panel.style.display='none'; out.textContent=''; });
+  }
+ });
+})();
+</script>
+
 </body>
 </html>
+
